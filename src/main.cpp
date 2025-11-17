@@ -15,10 +15,24 @@
 sf::View uiView(sf::FloatRect(0, 0, UI_WIDTH, UI_HEIGHT));
 
 // ==================== 全域背景 ====================
-sf::Texture g_bgTex;
-sf::Sprite  g_bgSprite;
-sf::RectangleShape g_bgOverlay;
-bool g_bgLoaded = false;
+// sf::Texture g_bgTex;
+// sf::Sprite  g_bgSprite;
+// sf::RectangleShape g_bgOverlay;
+// bool g_bgLoaded = false;
+
+sf::Texture& g_bgTex() {
+    static sf::Texture tex;
+    return tex;
+}
+
+sf::Sprite&    g_bgSprite()   { static sf::Sprite s; return s; }
+sf::RectangleShape& g_bgOverlay() { static sf::RectangleShape r; return r; }
+
+bool& g_bgLoaded() {
+    static bool loaded = false;
+    return loaded;
+}
+
 
 // 在「UI 座標空間」(800x600) 裡做等比例縮放
 void updateBackgroundUI()
@@ -26,29 +40,29 @@ void updateBackgroundUI()
     float uiW = UI_WIDTH;
     float uiH = UI_HEIGHT;
 
-    float imgW = g_bgTex.getSize().x;
-    float imgH = g_bgTex.getSize().y;
+    float imgW = g_bgTex().getSize().x;
+    float imgH = g_bgTex().getSize().y;
 
     if (imgW == 0 || imgH == 0) return;
 
     float scale = std::max(uiW / imgW, uiH / imgH);
-    g_bgSprite.setScale(scale, scale);
+    g_bgSprite().setScale(scale, scale);
 
     float posX = (uiW - imgW * scale) / 2.f;
     float posY = (uiH - imgH * scale) / 2.f;
-    g_bgSprite.setPosition(posX, posY);
+    g_bgSprite().setPosition(posX, posY);
 
-    g_bgOverlay.setSize({uiW, uiH});
+    g_bgOverlay().setSize({uiW, uiH});
 }
 
 void initBackground()
 {
-    if (g_bgLoaded) return;
-    g_bgLoaded = true;
+    if (g_bgLoaded()) return;
+    g_bgLoaded() = true;
 
-    g_bgTex.loadFromFile("assets/cat_bg.png");
-    g_bgSprite.setTexture(g_bgTex);
-    g_bgOverlay.setFillColor(sf::Color(0, 0, 0, 100));
+    g_bgTex().loadFromFile("assets/cat_bg.png");
+    g_bgSprite().setTexture(g_bgTex());
+    g_bgOverlay().setFillColor(sf::Color(0, 0, 0, 100));
 
     updateBackgroundUI();
 }
@@ -157,8 +171,8 @@ void runUsernamePage(sf::RenderWindow& window, State& state,
         window.setView(uiView);
         window.clear();
 
-        window.draw(g_bgSprite);
-        window.draw(g_bgOverlay);
+        window.draw(g_bgSprite());
+        window.draw(g_bgOverlay());
 
         window.draw(panel);
         title.draw(window);
@@ -301,8 +315,8 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
         window.setView(uiView);
         window.clear();
 
-        window.draw(g_bgSprite);
-        window.draw(g_bgOverlay);
+        window.draw(g_bgSprite());
+        window.draw(g_bgOverlay());
 
         title.draw(window);
         hostLabel.draw(window);
@@ -504,8 +518,8 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
         window.setView(uiView);
         window.clear();
 
-        window.draw(g_bgSprite);
-        window.draw(g_bgOverlay);
+        window.draw(g_bgSprite());
+        window.draw(g_bgOverlay());
 
         title.draw(window);
 
@@ -804,8 +818,8 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         // ===== Draw =====
         window.setView(uiView);
         window.clear();
-        window.draw(g_bgSprite);
-        window.draw(g_bgOverlay);
+        window.draw(g_bgSprite());
+        window.draw(g_bgOverlay());
 
         title.draw(window);
         window.draw(listPanel);
@@ -954,8 +968,8 @@ void runEndConnPage(sf::RenderWindow& window, State& state, EndReason reason)
         window.setView(uiView);
         window.clear();
 
-        window.draw(g_bgSprite);
-        window.draw(g_bgOverlay);
+        window.draw(g_bgSprite());
+        window.draw(g_bgOverlay());
 
         sf::RectangleShape panel({520, 260});
         panel.setPosition(140, 170);
