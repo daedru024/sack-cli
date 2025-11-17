@@ -4,12 +4,12 @@
 #include <string>
 #include <algorithm>
 
-#include "../include/button.hpp"
-#include "../include/textbox.hpp"
-#include "../include/label.hpp"
-#include "../include/ui_state.hpp"
-#include "../include/color_selector.hpp"
-#include "../include/ui_element.hpp"
+#include "button.hpp"
+#include "textbox.hpp"
+#include "label.hpp"
+#include "ui_state.hpp"
+#include "color_selector.hpp"
+#include "ui_element.hpp"
 
 // ==================== 固定 UI View（800x600） ====================
 sf::View uiView(sf::FloatRect(0, 0, UI_WIDTH, UI_HEIGHT));
