@@ -4,6 +4,7 @@
 #include <string>
 #include <algorithm>
 
+#include "libcliwrap.h"
 #include "button.hpp"
 #include "textbox.hpp"
 #include "label.hpp"
@@ -11,6 +12,8 @@
 #include "color_selector.hpp"
 #include "ui_element.hpp"
 
+int sockfd;
+const char servip[10] = "127.0.0.1";
 // ==================== 固定 UI View（800x600） ====================
 sf::View uiView(sf::FloatRect(0, 0, UI_WIDTH, UI_HEIGHT));
 
@@ -66,55 +69,14 @@ void initBackground()
     updateBackgroundUI();
 }
 
-// ==================== 房間資料 ====================
-
-struct Room {
-    int id;
-
-    std::vector<std::string> playerNames; // index 0 = Host
-
-    bool isPrivate = false;
-    std::string password;
-
-    bool locked = false;      // 房間是否已鎖定人數
-    int  lockedPlayers = 0;   // 鎖定時的人數（遊戲人數）
-
-    bool inGame = false;
-
-    std::string name;
-
-    int players() const {
-        return static_cast<int>(playerNames.size());
-    }
-
-    bool isFull() const {
-        if (inGame) return true;
-        if (locked) return players() >= lockedPlayers;
-        // 未鎖定時最大 5 人
-        return players() >= 5;
-    }
-
-    std::string hostName() const {
-        return playerNames.empty() ? "" : playerNames[0];
-    }
-
-    void resetIfEmpty()
-    {
-        if (!playerNames.empty()) return;
-        isPrivate     = false;
-        password.clear();
-        locked        = false;
-        lockedPlayers = 0;
-        inGame        = false;
-    }
-};
-
 // 初始假資料
-std::vector<Room> rooms = {
-    {1, {"Alice"},        false, "", false, 0, false, "Room 1"},
-    {2, {"Bob","Carol"},  true,  "1234", false, 0, false, "Room 2"},
-    {3, {},               false, "", false, 0, false, "Room 3"}
-};
+// std::vector<Room> rooms = {
+//     {1, {"Alice"},        false, "", false, 0, false, "Room 1"},
+//     {2, {"Bob","Carol"},  true,  "1234", false, 0, false, "Room 2"},
+//     {3, {},               false, "", false, 0, false, "Room 3"}
+// };
+std::vector<Room> rooms;
+GamePlay gameData;
 
 int currentRoomIndex = -1;
 
@@ -173,8 +135,10 @@ void runUsernamePage(sf::RenderWindow& window, State& state,
 
             if (okBtn.clicked(event, window)) {
                 username = usernameBox.buffer;
-                if (!username.empty())
+                if (!username.empty()) {
+                    sockfd = gameData.Connect(servip);
                     state = State::RoomInfo;
+                }
             }
 
             if (exitBtn.clicked(event, window)) {
@@ -456,7 +420,7 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             {
                 Room& r = rooms[selected];
 
-                if (r.inGame || r.isFull()) {
+                if (r.isFull()) {
                     errorMsg = "Room is full.";
                     continue;
                 }
@@ -565,9 +529,9 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             if (r.playerNames.empty()) {
                 status = "Empty room";
             } else {
-                status = std::to_string(r.players()) + " players";
+                status = std::to_string(r.n_players) + " players";
                 if (r.locked) {
-                    status += " (Locked " + std::to_string(r.lockedPlayers) + ")";
+                    status += " (Locked " + std::to_string(r.n_players) + ")";
                 }
             }
             st.setString(status);
@@ -663,11 +627,11 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
     Room &room = rooms[roomIdx];
 
     auto &players = room.playerNames;
-    int n = players.size();
+    int n = room.n_players;
 
     // 再檢查一次：房間竟然是空的，就回 RoomInfo
     if (n == 0) {
-        room.resetIfEmpty();
+        room = Room(room.id);
         state = State::RoomInfo;
         return;
     }
@@ -677,7 +641,9 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         if (players[i] == username) myIndex = i;
 
     std::vector<bool> isReady(n, false);
-    std::vector<int>  colorIndex(n, -1);
+    std::vector<int>  colorIndex(room.colors);
+
+    for(int i=0; i<room.n_players; i++) isReady[i] = (colorIndex[i] != -1);
 
     bool isHost = (!players.empty() && players[0] == username);
 
@@ -748,7 +714,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
                 if (it != players.end()) players.erase(it);
 
                 if (players.empty())
-                    room.resetIfEmpty();
+                    room = Room(room.id);
 
                 state = State::RoomInfo;
                 return;
@@ -785,19 +751,19 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
             // ===== Host：鎖定房間（Lock Room） =====
             if (isHost && lockBtn.clicked(event, window))
             {
-                int curPlayers = room.players();
+                int curPlayers = room.n_players;
 
                 if (!room.locked) {
                     // 解鎖狀態下，至少 3 人才可以鎖定
                     if (curPlayers >= 3 && curPlayers <= 5) {
-                        room.locked        = true;
-                        room.lockedPlayers = curPlayers;
+                        room.locked = 1;
+                        //TODO: Lock msg
                     }
                 } else {
                     // 已鎖定 → 可以手動解鎖（遊戲尚未開始）
                     if (!room.inGame) {
-                        room.locked        = false;
-                        room.lockedPlayers = 0;
+                        room.locked = 0;
+                        //TODO: unlock msg
                     }
                 }
             }
@@ -808,15 +774,8 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
                 bool allReady = true;
                 for (bool r : isReady)
                     if (!r) allReady = false;
-
-                int curPlayers = room.players();
                 // 鎖定 + 全 ready + 人數等於鎖定人數（且 >=3） 才能開始
-                bool canStart = room.locked &&
-                                allReady &&
-                                (curPlayers == room.lockedPlayers) &&
-                                (curPlayers >= 3);
-
-                if (canStart) {
+                if (room.locked && allReady) {
                     room.inGame = true;
                     state = State::GameStart; // 之後你可以接 Game 畫面
                     return;
@@ -826,19 +785,18 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
 
         // ===== 自動處理鎖定狀態（人數變化） =====
         {
-            int curPlayers = room.players();
+            int curPlayers = room.n_players;
 
             // 人數到 5 → 自動鎖定（如果尚未鎖定）
             if (!room.locked && curPlayers == 5) {
-                room.locked        = true;
-                room.lockedPlayers = 5;
+                room.locked = 1;
             }
 
             // 鎖定時若有人離開（人數 < lockedPlayers）→ 自動解鎖
-            if (room.locked && curPlayers < room.lockedPlayers) {
-                room.locked        = false;
-                room.lockedPlayers = 0;
-            }
+            //TODO
+            // if (room.locked && curPlayers < room.lockedPlayers) {
+            //     room.locked = 0;
+            // }
         }
 
         // ===== Auto-kick：只有 NOT READY 且 counting=true 時才處理 =====
@@ -930,7 +888,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         if (isHost)
         {
             // Lock Button 外觀
-            int curPlayers = room.players();
+            int curPlayers = room.n_players;
             bool canLock = (!room.locked && curPlayers >= 3 && curPlayers <= 5);
             if (room.locked)
                 lockBtn.shape.setFillColor(sf::Color(120,200,120));  // 已鎖定
@@ -946,13 +904,8 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
             // Start Game 按鈕外觀
             bool allReady = true;
             for (bool r : isReady) if (!r) allReady = false;
-            int curPlayers2 = room.players();
-            bool canStart = room.locked &&
-                            allReady &&
-                            (curPlayers2 == room.lockedPlayers) &&
-                            (curPlayers2 >= 3);
 
-            if (canStart)
+            if (room.locked && allReady)
                 startBtn.shape.setFillColor(sf::Color(120,200,120));
             else
                 startBtn.shape.setFillColor(sf::Color(30,30,30)); // 深灰
@@ -963,8 +916,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         }
 
         // Idle countdown：只有 NOT READY 且 counting 時顯示
-        if (!isReady[myIndex] && counting)
-        {
+        if (!isReady[myIndex] && counting) {
             float remain = KICK_TIME - idleTimer.getElapsedTime().asSeconds();
             if (remain < 0) remain = 0;
 
@@ -1060,6 +1012,8 @@ int main()
     State state = State::UsernameInput;
     EndReason reason = EndReason::None;
     std::string username;
+    rooms = std::vector<Room>(3);
+    for(int i=0; i<3; i++) rooms[i] = Room(i);
 
     while (window.isOpen())
     {
