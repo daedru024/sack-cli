@@ -14,25 +14,24 @@
 // ==================== 固定 UI View（800x600） ====================
 sf::View uiView(sf::FloatRect(0, 0, UI_WIDTH, UI_HEIGHT));
 
-// ==================== 全域背景 ====================
-// sf::Texture g_bgTex;
-// sf::Sprite  g_bgSprite;
-// sf::RectangleShape g_bgOverlay;
-// bool g_bgLoaded = false;
-
+// ==================== 全域背景：用函式包起來避免初始化順序問題 ====================
+// （這個寫法是你說「可以正常」的第一份）
 sf::Texture& g_bgTex() {
     static sf::Texture tex;
     return tex;
 }
-
-sf::Sprite&    g_bgSprite()   { static sf::Sprite s; return s; }
-sf::RectangleShape& g_bgOverlay() { static sf::RectangleShape r; return r; }
-
+sf::Sprite& g_bgSprite() {
+    static sf::Sprite s;
+    return s;
+}
+sf::RectangleShape& g_bgOverlay() {
+    static sf::RectangleShape r;
+    return r;
+}
 bool& g_bgLoaded() {
     static bool loaded = false;
     return loaded;
 }
-
 
 // 在「UI 座標空間」(800x600) 裡做等比例縮放
 void updateBackgroundUI()
@@ -72,18 +71,28 @@ void initBackground()
 struct Room {
     int id;
 
-    std::vector<std::string> playerNames; // 真實玩家名單，index 0 = Host
-    int maxPlayers;                       // 3/4/5，0 = 尚未設定（空房）
+    std::vector<std::string> playerNames; // index 0 = Host
 
-    bool isPrivate;
-    std::string password;                // private 時 4 位數
-    bool inGame;
+    bool isPrivate = false;
+    std::string password;
+
+    bool locked = false;      // 房間是否已鎖定人數
+    int  lockedPlayers = 0;   // 鎖定時的人數（遊戲人數）
+
+    bool inGame = false;
 
     std::string name;
 
-    int players() const { return static_cast<int>(playerNames.size()); }
-    bool hasSettings() const { return maxPlayers != 0; }
-    bool isFull() const { return hasSettings() && players() >= maxPlayers; }
+    int players() const {
+        return static_cast<int>(playerNames.size());
+    }
+
+    bool isFull() const {
+        if (inGame) return true;
+        if (locked) return players() >= lockedPlayers;
+        // 未鎖定時最大 5 人
+        return players() >= 5;
+    }
 
     std::string hostName() const {
         return playerNames.empty() ? "" : playerNames[0];
@@ -92,21 +101,19 @@ struct Room {
     void resetIfEmpty()
     {
         if (!playerNames.empty()) return;
-        maxPlayers = 0;
-        isPrivate  = false;
+        isPrivate     = false;
         password.clear();
-        inGame = false;
+        locked        = false;
+        lockedPlayers = 0;
+        inGame        = false;
     }
 };
 
-// 初始假資料：
-// Room1: Host Alice, 1/3 public
-// Room2: Host Bob, Carol, 2/5 private, key 1234
-// Room3: 空房，尚未設定
+// 初始假資料
 std::vector<Room> rooms = {
-    {1, {"Alice"},           3, false, "",     false, "Room 1"},
-    {2, {"Bob", "Carol"},    5, true,  "1234", false, "Room 2"},
-    {3, {},                  0, false, "",     false, "Room 3"}
+    {1, {"Alice"},        false, "", false, 0, false, "Room 1"},
+    {2, {"Bob","Carol"},  true,  "1234", false, 0, false, "Room 2"},
+    {3, {},               false, "", false, 0, false, "Room 3"}
 };
 
 int currentRoomIndex = -1;
@@ -118,6 +125,17 @@ enum class EndReason {
     WrongKeyTooMany,
     Timeout
 };
+
+// 全域：計算目前 private 房間數（可以忽略某一間，用於設定時排除自己）
+int countPrivateRooms(const Room* ignore = nullptr)
+{
+    int cnt = 0;
+    for (auto &r : rooms) {
+        if (&r == ignore) continue;
+        if (r.isPrivate) cnt++;
+    }
+    return cnt;
+}
 
 // ==================== Username Page ====================
 
@@ -186,7 +204,8 @@ void runUsernamePage(sf::RenderWindow& window, State& state,
 }
 
 // ==================== Host Setting Page ====================
-// 只會在「空房」第一個玩家進來時出現
+// 只在「進入空房的房主」第一次進來時出現：決定 public / private + 密碼。
+// 三間房最多只允許兩間 private。
 void runHostSettingPage(sf::RenderWindow& window, State& state,
                         EndReason& /*reason*/, Room& room,
                         const std::string& username)
@@ -194,50 +213,33 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
     sf::Font font;
     font.loadFromFile("fonts/NotoSans-Regular.ttf");
 
-    Label title(&font, "Room Settings", 220, 40, 46,
+    Label title(&font, "Room Privacy", 240, 50, 46,
                 sf::Color::White, sf::Color::Black, 4);
 
     std::string hostStr = "Host: " + username;
-    Label hostLabel(&font, hostStr, 220, 100, 26,
+    Label hostLabel(&font, hostStr, 240, 110, 24,
                     sf::Color::White, sf::Color::Black, 2);
 
-    // 玩家數選擇：按鈕 & 字體都縮小，不超出畫面
-    float bw = 200.f, bh = 60.f;
-    Button max3(&font, "3 Players", 80,  160, bw, bh);
-    Button max4(&font, "4 Players", 300, 160, bw, bh);
-    Button max5(&font, "5 Players", 520, 160, bw, bh);
+    Button publicBtn (&font, "Public", 190, 180, 180, 60);
+    Button privateBtn(&font, "Private", 410, 180, 180, 60);
 
-    max3.text.setCharacterSize(24);
-    max4.text.setCharacterSize(24);
-    max5.text.setCharacterSize(24);
-    for (Button* b : {&max3, &max4, &max5}) {
-        sf::FloatRect tb = b->text.getLocalBounds();
-        b->text.setPosition(
-            b->shape.getPosition().x + (b->shape.getSize().x - tb.width)/2.f - tb.left,
-            b->shape.getPosition().y + (b->shape.getSize().y - tb.height)/2.f - tb.top
-        );
-    }
-
-    int chosenMax = 0;
-
-    // Public / Private 往下移一點，不和 Players 列重疊
-    Button publicBtn (&font, "Public", 230, 240, 180, 60);
-    Button privateBtn(&font, "Private", 430, 240, 180, 60);
     publicBtn.text.setCharacterSize(28);
     privateBtn.text.setCharacterSize(28);
-    for (Button* b : {&publicBtn, &privateBtn}) {
-        sf::FloatRect tb = b->text.getLocalBounds();
-        b->text.setPosition(
-            b->shape.getPosition().x + (b->shape.getSize().x - tb.width)/2.f - tb.left,
-            b->shape.getPosition().y + (b->shape.getSize().y - tb.height)/2.f - tb.top
+    auto centerText = [](Button& b){
+        sf::FloatRect tb = b.text.getLocalBounds();
+        b.text.setPosition(
+            b.shape.getPosition().x + (b.shape.getSize().x - tb.width)/2.f - tb.left,
+            b.shape.getPosition().y + (b.shape.getSize().y - tb.height)/2.f - tb.top
         );
-    }
+    };
+    centerText(publicBtn);
+    centerText(privateBtn);
 
-    bool isPrivate = false;
+    bool isPrivate = room.isPrivate;     // 預設帶入原本設定
+    std::string pwBuf = room.password;   // 若原本是 private，保留原密碼（可改）
 
     // 密碼（private 時）
     const int PASS_LEN = 4;
-    std::string pwBuf;
     sf::RectangleShape pwBox[PASS_LEN];
     for (int i = 0; i < PASS_LEN; i++) {
         pwBox[i].setSize({50, 60});
@@ -246,11 +248,11 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
         pwBox[i].setFillColor(sf::Color(255,255,255,230));
     }
 
-    // 說明文字：擺在密碼格上方
-    Label pwLabel(&font, "Password (4 digits)", 230, 320, 22,
+    Label pwLabel(&font, "Password (4 digits)", 230, 260, 22,
                   sf::Color::White, sf::Color::Black, 2);
 
-    Button confirmBtn(&font, "CONFIRM", 300, 470, 200, 70);
+    Button confirmBtn(&font, "CONFIRM", 300, 420, 200, 70);
+    centerText(confirmBtn);
 
     std::string errorMsg;
 
@@ -262,52 +264,53 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
             if (event.type == sf::Event::Closed)
                 window.close();
 
-            // 人數選擇
-            if (max3.clicked(event, window)) chosenMax = 3;
-            if (max4.clicked(event, window)) chosenMax = 4;
-            if (max5.clicked(event, window)) chosenMax = 5;
-
-            // Public / Private
+            // Public / Private 選擇（只是暫存，最後 Confirm 再檢查限制）
             if (publicBtn.clicked(event, window)) {
                 isPrivate = false;
                 pwBuf.clear();
+                errorMsg.clear();
             }
             if (privateBtn.clicked(event, window)) {
                 isPrivate = true;
+                errorMsg.clear();
             }
 
-            // 密碼輸入
+            // 密碼輸入（private 時才吃 TextEntered）
             if (isPrivate && event.type == sf::Event::TextEntered) {
                 if (event.text.unicode == 8) {          // Backspace
                     if (!pwBuf.empty()) pwBuf.pop_back();
                 } else if (event.text.unicode >= '0' &&
                            event.text.unicode <= '9') { // digit
                     if (pwBuf.size() < PASS_LEN)
-                        pwBuf.push_back((char)event.text.unicode);
+                        pwBuf.push_back(static_cast<char>(event.text.unicode));
                 }
             }
 
             // 確認
             if (confirmBtn.clicked(event, window)) {
-                if (chosenMax == 0) {
-                    errorMsg = "Please choose player count.";
-                } else if (isPrivate && pwBuf.size() != PASS_LEN) {
-                    errorMsg = "Password must be 4 digits.";
-                } else {
-                    room.maxPlayers = chosenMax;
-                    room.isPrivate  = isPrivate;
-                    room.password   = isPrivate ? pwBuf : "";
-                    room.inGame     = false;
-                    // Host 已在 playerNames[0]
-                    state = State::InRoom;
+                // 若選 private，要檢查密碼長度 & private 房數限制
+                if (isPrivate) {
+                    if (pwBuf.size() != PASS_LEN) {
+                        errorMsg = "Password must be 4 digits.";
+                        continue;
+                    }
+                    int privCnt = countPrivateRooms(&room);
+                    if (privCnt >= 2) {
+                        errorMsg = "At most 2 PRIVATE rooms allowed.";
+                        isPrivate = false; // 驗證沒過，回到 public 狀態
+                        pwBuf.clear();
+                        continue;
+                    }
                 }
+                // 寫入房間設定
+                room.isPrivate = isPrivate;
+                room.password  = isPrivate ? pwBuf : "";
+                state = State::InRoom;
+                return;
             }
         }
 
         // hover 效果
-        max3.update(window);
-        max4.update(window);
-        max5.update(window);
         publicBtn.update(window);
         privateBtn.update(window);
         confirmBtn.update(window);
@@ -321,18 +324,7 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
         title.draw(window);
         hostLabel.draw(window);
 
-        auto setChoiceColor = [](Button& btn, bool chosen) {
-            btn.shape.setFillColor(chosen ? sf::Color(200,240,200)
-                                          : sf::Color(220,220,220));
-        };
-        setChoiceColor(max3, chosenMax == 3);
-        setChoiceColor(max4, chosenMax == 4);
-        setChoiceColor(max5, chosenMax == 5);
-
-        max3.draw(window);
-        max4.draw(window);
-        max5.draw(window);
-
+        // Public / Private 顯示
         publicBtn.shape.setFillColor(!isPrivate ? sf::Color(200,240,200)
                                                 : sf::Color(220,220,220));
         privateBtn.shape.setFillColor(isPrivate ? sf::Color(200,240,200)
@@ -340,26 +332,27 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
         publicBtn.draw(window);
         privateBtn.draw(window);
 
-        // 密碼區：只有 private 時顯示
+        // 密碼區（只有 private 時顯示）
         if (isPrivate) {
             pwLabel.draw(window);
             for (int i = 0; i < PASS_LEN; i++) {
-                pwBox[i].setPosition(230 + i * 60.f, 350);
+                pwBox[i].setPosition(230 + i * 60.f, 300);
                 window.draw(pwBox[i]);
 
                 if (i < (int)pwBuf.size()) {
                     sf::Text digit(std::string(1, pwBuf[i]), font, 32);
                     digit.setFillColor(sf::Color::Black);
-                    digit.setPosition(240 + i * 60.f, 348);
+                    digit.setPosition(240 + i * 60.f, 298);
                     window.draw(digit);
                 }
             }
         }
 
+        // 錯誤訊息
         if (!errorMsg.empty()) {
             sf::Text e(errorMsg, font, 20);
             e.setFillColor(sf::Color::Red);
-            e.setPosition(230, 410);
+            e.setPosition(230, 380);
             window.draw(e);
         }
 
@@ -368,7 +361,6 @@ void runHostSettingPage(sf::RenderWindow& window, State& state,
         window.display();
     }
 }
-
 
 // ==================== RoomInfo Page ====================
 
@@ -399,7 +391,6 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
         passBox[i].setOutlineThickness(3);
     }
 
-    // 密碼說明字直接放在右邊、密碼格上方
     Label passLabel(&font, "Password (4 digits)", 520, 205, 22,
                     sf::Color::White, sf::Color::Black, 2);
 
@@ -432,7 +423,7 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             auto canClick = [&](int i) {
                 Room& r = rooms[i];
                 if (r.inGame) return false;
-                if (r.hasSettings() && r.isFull()) return false;
+                if (r.isFull()) return false;
                 return true;
             };
 
@@ -441,7 +432,7 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
                 if (canClick(i) && roomBtn[i].clicked(event, window)) {
                     selected = i;
                     Room& r = rooms[i];
-                    needsKey = r.isPrivate && r.hasSettings();
+                    needsKey = r.isPrivate && !r.playerNames.empty();
                     keyInput.clear();
                     errorMsg.clear();
                     selectedLabel.text.setString("Selected: " + r.name);
@@ -465,19 +456,19 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             {
                 Room& r = rooms[selected];
 
-                if (r.inGame || (r.hasSettings() && r.isFull())) {
+                if (r.inGame || r.isFull()) {
                     errorMsg = "Room is full.";
                     continue;
                 }
 
                 if (r.playerNames.empty()) {
-                    // 空房：成為房主，先 HostSetting
+                    // 空房：成為房主，先去 HostSetting 選公開/私密
                     r.playerNames.push_back(username);
                     currentRoomIndex = selected;
                     state = State::HostSetting;
                 } else {
-                    // 需要密碼
-                    if (r.isPrivate && r.hasSettings()) {
+                    // 已有玩家：若是 private 需輸入密碼
+                    if (r.isPrivate) {
                         if (keyInput != r.password) {
                             wrongKeyCount++;
                             errorMsg = "Wrong password!";
@@ -540,7 +531,7 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             Room&   r = rooms[i];
             Button& b = roomBtn[i];
 
-            bool full = r.hasSettings() && r.isFull();
+            bool full = r.isFull();
 
             sf::Color base(210,230,250);
             if (full)      base = sf::Color(180,180,180);
@@ -561,25 +552,25 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             window.draw(hostTx);
 
             // Room name
-            sf::Text roomName(r.name, font, 32);
+            sf::Text roomName(r.name, font, 28);
             roomName.setFillColor(sf::Color::Black);
             roomName.setPosition(b.shape.getPosition().x + 130,
                                  b.shape.getPosition().y + 25);
             window.draw(roomName);
 
-            // 人數 or Empty
-            sf::Text st("", font, 22);
+            // 人數 / Locked 狀態
+            sf::Text st("", font, 20);
             st.setFillColor(sf::Color::Black);
-            if (r.playerNames.empty() && !r.hasSettings()) {
-                st.setString("Empty room");
-            } else if (r.hasSettings()) {
-                bool fullNow = r.isFull();
-                st.setString(std::to_string(r.players()) + " / " +
-                             std::to_string(r.maxPlayers) +
-                             (fullNow ? " (Full)" : ""));
+            std::string status;
+            if (r.playerNames.empty()) {
+                status = "Empty room";
             } else {
-                st.setString(std::to_string(r.players()) + " players");
+                status = std::to_string(r.players()) + " players";
+                if (r.locked) {
+                    status += " (Locked " + std::to_string(r.lockedPlayers) + ")";
+                }
             }
+            st.setString(status);
             st.setPosition(b.shape.getPosition().x + 12,
                            b.shape.getPosition().y + 55);
             window.draw(st);
@@ -653,22 +644,33 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
     }
 }
 
-
-// ==================== InRoom Page ====================
-
 // ==================== InRoom Page ====================
 
 void runInRoomPage(sf::RenderWindow &window, State &state,
-                   const std::string &username, EndReason &reason)
+                   const std::string &username, EndReason &/*reason*/)
 {
     sf::Font font;
     font.loadFromFile("fonts/NotoSans-Regular.ttf");
 
     int roomIdx = currentRoomIndex;
+
+    // 保險：避免 roomIdx 無效導致 segfault
+    if (roomIdx < 0 || roomIdx >= (int)rooms.size()) {
+        state = State::RoomInfo;
+        return;
+    }
+
     Room &room = rooms[roomIdx];
 
     auto &players = room.playerNames;
     int n = players.size();
+
+    // 再檢查一次：房間竟然是空的，就回 RoomInfo
+    if (n == 0) {
+        room.resetIfEmpty();
+        state = State::RoomInfo;
+        return;
+    }
 
     int myIndex = 0;
     for (int i = 0; i < n; i++)
@@ -677,7 +679,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
     std::vector<bool> isReady(n, false);
     std::vector<int>  colorIndex(n, -1);
 
-    bool isHost = (players[0] == username);
+    bool isHost = (!players.empty() && players[0] == username);
 
     Label title(&font, "Room Lobby", 240, 40, 52,
                 sf::Color::White, sf::Color::Black, 5);
@@ -690,32 +692,39 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
     listPanel.setOutlineThickness(4);
 
     Button exitBtn(&font, "Exit", 650, 20, 120, 40);
-    Button settingBtn(&font, "SETTING", 500, 330, 200, 55);
-    settingBtn.text.setCharacterSize(26);
 
+    Button lockBtn(&font, "LOCK ROOM", 500, 330, 200, 55);
     Button readyBtn(&font, "READY", 500, 400, 200, 70);
     Button startBtn(&font, "START GAME", 40, 480, 260, 70);
     startBtn.text.setCharacterSize(26);
 
-    Label colorLabel(&font, "Choose your color:", 500, 170, 28,
+    auto centerText = [](Button& b){
+        sf::FloatRect tb = b.text.getLocalBounds();
+        b.text.setPosition(
+            b.shape.getPosition().x + (b.shape.getSize().x - tb.width)/2.f - tb.left,
+            b.shape.getPosition().y + (b.shape.getSize().y - tb.height)/2.f - tb.top
+        );
+    };
+    centerText(lockBtn);
+    centerText(readyBtn);
+    centerText(startBtn);
+
+    Label colorLabel(&font, "Choose your color:", 500, 170, 24,
                      sf::Color::White, sf::Color::Black, 3);
 
+    // 顏色選擇：位置跟你原本 A 版靠右下一排的設計一致
     ColorSelector selector(0,0);
-    selector.setLimit(room.maxPlayers);
-    selector.computePositions(640, 260);
+    selector.setLimit(5);            // 最多 5 種顏色
+    selector.computePositions(640, 260);  // 中心在 (640,260)
 
     Label readyStateLabel(&font, "Not Ready", 540, 500, 22,
                           sf::Color::White, sf::Color::Black, 2);
 
-    // ======================
-    // ★ Auto-kick 邏輯
-    // ======================
+    // Auto-kick
     sf::Clock idleTimer;
-    const float KICK_TIME = 30.f;  // ✔ 秒數統一管理
-    bool counting = true;    // true = 倒數中，false = 停止倒數（Ready 時）
-
-    auto resetIdle = [&]() { idleTimer.restart(); counting = true; };
-    auto stopIdle  = [&]() { counting = false; };
+    const float KICK_TIME = 30.f;
+    bool counting = true; // 未 ready 時倒數
+    idleTimer.restart();  // 一進房就開始倒數
 
     auto isColorTaken = [&](int col){
         for (int i = 0; i < n; i++)
@@ -732,6 +741,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
             if (event.type == sf::Event::Closed)
                 window.close();
 
+            // ===== Exit =====
             if (exitBtn.clicked(event, window))
             {
                 auto it = std::find(players.begin(), players.end(), username);
@@ -744,64 +754,94 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
                 return;
             }
 
-            // ========== Ready toggle（強制要求選顏色）==========
+            // ===== Ready toggle（必須先選顏色） =====
             if (readyBtn.clicked(event, window))
             {
-                // ⛔ 玩家沒有選顏色 → 不允許 ready
-                if (colorIndex[myIndex] == -1) 
-                {
-                    // 你也可以加個紅色提醒文字
-                    // 例如 readyError = "Please choose a color first!";
-                    std::cout << "Ready denied: choose color first\n";
-                    continue; // ❗ 非常重要：不要繼續往下執行 toggle！
+                if (colorIndex[myIndex] == -1) {
+                    // 沒選顏色不能 ready
+                    std::cout << "Ready denied: choose color first.\n";
+                } else {
+                    bool nowReady = !isReady[myIndex];
+                    isReady[myIndex] = nowReady;
+
+                    if (nowReady) {
+                        // 按下 READY → 停止倒數 & 不顯示文字
+                        counting = false;
+                    } else {
+                        // 變回 NOT READY → 重新從 30 秒倒數
+                        counting = true;
+                        idleTimer.restart();
+                    }
                 }
-
-                // ⭐ 已選顏色 → 允許 ready / not ready
-                isReady[myIndex] = !isReady[myIndex];
-
-                if (isReady[myIndex]) {
-                // ✔ 按下 READY → 停止倒數
-                counting = false;
-            } else {
-                // ✔ 按下 NOT READY → 重新開始倒數
-                counting = true;
-                idleTimer.restart();
-            }
             }
 
-
-            if (!isReady[myIndex])
-            {
+            // ===== 顏色選擇（只限自己 & 未 ready） =====
+            if (!isReady[myIndex]) {
                 selector.updateClick(event, window,
                     [&](int c){ return isColorTaken(c); });
                 colorIndex[myIndex] = selector.selected;
             }
 
-            if (isHost && settingBtn.clicked(event, window))
+            // ===== Host：鎖定房間（Lock Room） =====
+            if (isHost && lockBtn.clicked(event, window))
             {
-                state = State::HostSetting;
-                return;
+                int curPlayers = room.players();
+
+                if (!room.locked) {
+                    // 解鎖狀態下，至少 3 人才可以鎖定
+                    if (curPlayers >= 3 && curPlayers <= 5) {
+                        room.locked        = true;
+                        room.lockedPlayers = curPlayers;
+                    }
+                } else {
+                    // 已鎖定 → 可以手動解鎖（遊戲尚未開始）
+                    if (!room.inGame) {
+                        room.locked        = false;
+                        room.lockedPlayers = 0;
+                    }
+                }
             }
 
-            // ====== Start Game 按鈕（只能在滿人+全 ready 按）======
+            // ===== Host：Start Game =====
             if (isHost && startBtn.clicked(event, window))
             {
                 bool allReady = true;
-                for (bool r : isReady) if (!r) allReady = false;
+                for (bool r : isReady)
+                    if (!r) allReady = false;
 
-                bool roomFull = (players.size() == room.maxPlayers);
+                int curPlayers = room.players();
+                // 鎖定 + 全 ready + 人數等於鎖定人數（且 >=3） 才能開始
+                bool canStart = room.locked &&
+                                allReady &&
+                                (curPlayers == room.lockedPlayers) &&
+                                (curPlayers >= 3);
 
-                if (allReady && roomFull)
-                {
-                    state = State::GameStart;
+                if (canStart) {
+                    room.inGame = true;
+                    state = State::GameStart; // 之後你可以接 Game 畫面
                     return;
                 }
             }
+        } // poll events
+
+        // ===== 自動處理鎖定狀態（人數變化） =====
+        {
+            int curPlayers = room.players();
+
+            // 人數到 5 → 自動鎖定（如果尚未鎖定）
+            if (!room.locked && curPlayers == 5) {
+                room.locked        = true;
+                room.lockedPlayers = 5;
+            }
+
+            // 鎖定時若有人離開（人數 < lockedPlayers）→ 自動解鎖
+            if (room.locked && curPlayers < room.lockedPlayers) {
+                room.locked        = false;
+                room.lockedPlayers = 0;
+            }
         }
 
-        // ======================
-        // ★ Auto-kick 執行
-        // ======================
+        // ===== Auto-kick：只有 NOT READY 且 counting=true 時才處理 =====
         if (counting)
         {
             float elapsed = idleTimer.getElapsedTime().asSeconds();
@@ -824,7 +864,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         title.draw(window);
         window.draw(listPanel);
 
-        // ===== 玩家列表 =====
+        // 玩家列表
         for (int i = 0; i < n; i++)
         {
             std::string nm = players[i];
@@ -859,6 +899,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
             window.draw(r);
         }
 
+        // 顏色選擇區
         colorLabel.draw(window);
 
         selector.preview.setFillColor(
@@ -869,6 +910,7 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         window.draw(selector.preview);
         selector.draw(window, isColorTaken);
 
+        // 按鈕
         exitBtn.update(window);
         exitBtn.draw(window);
 
@@ -885,29 +927,43 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         );
         readyStateLabel.draw(window);
 
-        // ===== Host 按鈕 =====
         if (isHost)
         {
-            settingBtn.update(window);
-            settingBtn.draw(window);
+            // Lock Button 外觀
+            int curPlayers = room.players();
+            bool canLock = (!room.locked && curPlayers >= 3 && curPlayers <= 5);
+            if (room.locked)
+                lockBtn.shape.setFillColor(sf::Color(120,200,120));  // 已鎖定
+            else if (!canLock)
+                lockBtn.shape.setFillColor(sf::Color(80,80,80));      // 不可鎖
+            else
+                lockBtn.shape.setFillColor(sf::Color(220,220,220));   // 一般
 
+            centerText(lockBtn);
+            lockBtn.update(window);
+            lockBtn.draw(window);
+
+            // Start Game 按鈕外觀
             bool allReady = true;
             for (bool r : isReady) if (!r) allReady = false;
-            bool roomFull = (players.size() == room.maxPlayers);
-            bool canStart = allReady && roomFull;
+            int curPlayers2 = room.players();
+            bool canStart = room.locked &&
+                            allReady &&
+                            (curPlayers2 == room.lockedPlayers) &&
+                            (curPlayers2 >= 3);
 
-            // ⭐ Start Game 一律深灰除非 canStart
-            startBtn.shape.setFillColor(
-                canStart ? sf::Color(120,200,120)
-                         : sf::Color(30,30,30)
-            );
+            if (canStart)
+                startBtn.shape.setFillColor(sf::Color(120,200,120));
+            else
+                startBtn.shape.setFillColor(sf::Color(30,30,30)); // 深灰
 
+            centerText(startBtn);
             startBtn.update(window);
             startBtn.draw(window);
         }
 
-        // ====== Idle countdown（只有 Not Ready 才顯示）======
-        if (!isReady[myIndex])
+        // Idle countdown：只有 NOT READY 且 counting 時顯示
+        if (!isReady[myIndex] && counting)
         {
             float remain = KICK_TIME - idleTimer.getElapsedTime().asSeconds();
             if (remain < 0) remain = 0;
@@ -924,9 +980,6 @@ void runInRoomPage(sf::RenderWindow &window, State &state,
         window.display();
     }
 }
-
-
-
 
 // ==================== End Connection Page ====================
 
@@ -1034,6 +1087,32 @@ int main()
 
             case State::InRoom:
                 runInRoomPage(window, state, username, reason);
+                break;
+
+            case State::GameStart:
+            {
+                window.setView(uiView);
+                window.clear();
+                window.draw(g_bgSprite());
+                window.draw(g_bgOverlay());
+                sf::Font font;
+                font.loadFromFile("fonts/NotoSans-Regular.ttf");
+                sf::Text tx("Game starting ... (placeholder)", font, 28);
+                tx.setFillColor(sf::Color::White);
+                tx.setOutlineColor(sf::Color::Black);
+                tx.setOutlineThickness(2);
+                tx.setPosition(120, 260);
+                window.draw(tx);
+                window.display();
+
+                // 目前先直接回到 RoomInfo，之後你可以接真正的遊戲狀態
+                state = State::RoomInfo;
+                break;
+            }
+
+            case State::ReEstablish:
+                // 現在沒用到，你之後接上 server 再實作
+                state = State::RoomInfo;
                 break;
 
             case State::EndConn:
