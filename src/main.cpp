@@ -12,7 +12,6 @@
 #include "color_selector.hpp"
 #include "ui_element.hpp"
 
-int sockfd;
 const char servip[10] = "127.0.0.1";
 // ==================== 固定 UI View（800x600） ====================
 sf::View uiView(sf::FloatRect(0, 0, UI_WIDTH, UI_HEIGHT));
@@ -136,7 +135,7 @@ void runUsernamePage(sf::RenderWindow& window, State& state,
             if (okBtn.clicked(event, window)) {
                 username = usernameBox.buffer;
                 if (!username.empty()) {
-                    sockfd = gameData.Connect(servip);
+                    gameData = GamePlay(servip);
                     state = State::RoomInfo;
                 }
             }
