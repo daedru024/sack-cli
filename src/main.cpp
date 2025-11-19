@@ -135,7 +135,7 @@ void runUsernamePage(sf::RenderWindow& window, State& state,
             if (okBtn.clicked(event, window)) {
                 username = usernameBox.buffer;
                 if (!username.empty()) {
-                    gameData = GamePlay(servip);
+                    gameData = GamePlay(servip, username);
                     state = State::RoomInfo;
                 }
             }
@@ -415,43 +415,37 @@ void runRoomInfoPage(sf::RenderWindow& window, State& state,
             }
 
             // JOIN
-            if (selected != -1 && joinBtn.clicked(event, window))
-            {
-                Room& r = rooms[selected];
-
-                if (r.isFull()) {
-                    errorMsg = "Room is full.";
-                    continue;
-                }
-
-                if (r.playerNames.empty()) {
-                    // 空房：成為房主，先去 HostSetting 選公開/私密
-                    r.playerNames.push_back(username);
-                    currentRoomIndex = selected;
-                    state = State::HostSetting;
-                } else {
-                    // 已有玩家：若是 private 需輸入密碼
-                    if (r.isPrivate) {
-                        if (keyInput != r.password) {
-                            wrongKeyCount++;
-                            errorMsg = "Wrong password!";
-                            keyInput.clear();
-                            if (wrongKeyCount >= 3) {
-                                reason = EndReason::WrongKeyTooMany;
-                                state  = State::EndConn;
-                            }
-                            continue;
+            if (selected != -1 && joinBtn.clicked(event, window)) {
+                int er;
+                if(rooms[selected].isPrivate) er = gameData.JoinRoom(selected, keyInput);
+                else er = gameData.JoinRoom(selected);
+                switch (er) {
+                    case ROOM_FULL:
+                        errorMsg = "Room is full.";
+                        break;
+                    case ROOM_LOCKED:
+                        errorMsg = "Room is locked.";
+                        break;
+                    case ROOM_PRIVATE:
+                        errorMsg = "Room is private.";
+                        break;
+                    case WRONG_PIN:
+                        errorMsg = "Wrong password!";
+                        keyInput.clear();
+                        if (++wrongKeyCount >= 3) {
+                            reason = EndReason::WrongKeyTooMany;
+                            state  = State::EndConn;
                         }
-                    }
-                    // 加入房間（避免重複）
-                    if (std::find(r.playerNames.begin(),
-                                  r.playerNames.end(),
-                                  username) == r.playerNames.end())
-                    {
-                        r.playerNames.push_back(username);
-                    }
-                    currentRoomIndex = selected;
-                    state = State::InRoom;
+                        continue;
+                        break;
+                    case ROOM_PLAYING:
+                        errorMsg = "Room is already playing.";
+                        break;
+                    default:
+                        Room& r = gameData.myRoom;
+                        if(r.n_players == 1) state = State::HostSetting;
+                        else state = State::InRoom;
+                        break;
                 }
             }
         }
