@@ -4,6 +4,11 @@ int GamePlay::Connect(const char* servip) {
     return Conn(servip);
 }
 
+void GamePlay::ContinuePlay() {
+    EndConn();
+    Connect(servip.c_str());
+}
+
 int GamePlay::EndConn() {
     Close(sockfd);
 }

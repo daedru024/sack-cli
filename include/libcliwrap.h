@@ -34,13 +34,15 @@ public:
 
 class GamePlay {
     int sockfd, playerID, rem_money, roomID;
-    std::string UserName;
+    std::string servip, UserName;
     std::bitset<10> MASKUc, MASKSt;
 public:
     Room myRoom;
     GamePlay() {}
-    GamePlay(const char* servip, std::string s) : sockfd(Connect(servip)), UserName(s) {}
+    GamePlay(const char* servip, std::string s) : servip(servip), sockfd(Connect(servip)), UserName(s) {}
+    
     int Connect(const char* servip); 
+    void ContinuePlay();
     int EndConn();
     void GetRoomInfo(std::vector<Room>& rooms);
     int JoinRoom(int rid);
