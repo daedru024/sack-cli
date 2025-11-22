@@ -1,7 +1,5 @@
 #include "ui/pages/endconn_page.hpp"
-#include "ui/common/ui_background.hpp"
-#include "ui/widgets/label.hpp"
-#include "ui/widgets/button.hpp"
+// #include "ui/common/ui_background.hpp"
 
 void runEndConnPage(sf::RenderWindow& window, State& state, EndReason reason)
 {

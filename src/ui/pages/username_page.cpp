@@ -1,7 +1,7 @@
 #include "ui/pages/username_page.hpp"
 
-extern GamePlay gameData;
-extern const char servip[10];
+// extern GamePlay gameData;
+// extern const char servip[10];
 
 void runUsernamePage(
     sf::RenderWindow& window,
@@ -45,7 +45,7 @@ void runUsernamePage(
                 if (!username.empty())
                 {
                     // ★ 完全符合原始 main.cpp 的寫法
-                    gameData = GamePlay(servip, username);
+                    gameData = GamePlay(servip.c_str(), username);
                     state = State::RoomInfo;
                 }
             }

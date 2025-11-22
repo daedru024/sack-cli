@@ -1,10 +1,11 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include <string>
+#include "app/app.hpp"
+#include "ui/widgets/color_selector.hpp"
+#include <algorithm>
+#include <iostream>
 
-#include "ui/common/ui_state.hpp"
-#include "room.hpp"
-#include "libcliwrap.h"
+// ===== Color table =====
+extern const std::array<sf::Color, 5> PLAYER_COLORS;
 
 void runInRoomPage(
     sf::RenderWindow &window,

@@ -1,9 +1,4 @@
 #include "ui/pages/host_setting_page.hpp"
-#include "room_utils.hpp"
-#include <iostream>
-
-extern std::vector<Room> rooms;
-extern int countPrivateRooms(const Room* ignore);
 
 void runHostSettingPage(
     sf::RenderWindow& window,
@@ -94,13 +89,13 @@ void runHostSettingPage(
                     }
 
                     // main.cpp 行為：最多 2 間 private
-                    int cnt = countPrivateRooms(&room);
-                    if (cnt >= 2) {
-                        errorMsg = "At most 2 PRIVATE rooms allowed.";
-                        isPrivate = false;
-                        pwBuf.clear();
-                        continue;
-                    }
+                    // int cnt = countPrivateRooms(&room);
+                    // if (cnt >= 2) {
+                    //     errorMsg = "At most 2 PRIVATE rooms allowed.";
+                    //     isPrivate = false;
+                    //     pwBuf.clear();
+                    //     continue;
+                    // }
                 }
 
                 // 寫入房間設定

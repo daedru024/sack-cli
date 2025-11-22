@@ -1,16 +1,6 @@
 #include "ui/pages/in_room_page.hpp"
-#include "ui/common/ui_background.hpp"
-#include "ui/common/ui_common.hpp"
-
-#include <algorithm>
-#include <iostream>
-
-// ===== Color table =====
-extern const std::array<sf::Color, 5> PLAYER_COLORS;
-
-extern std::vector<Room> rooms;
-extern int currentRoomIndex;
-
+// #include "ui/common/ui_background.hpp"
+// #include "ui/common/ui_common.hpp"
 
 void runInRoomPage(
     sf::RenderWindow &window,

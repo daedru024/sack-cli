@@ -1,6 +1,7 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include "ui/common/ui_state.hpp" 
+#include "app/app.hpp"
+#include "ui/widgets/ui_element.hpp"
+#include <algorithm>
 
 // UI 座標：800×600
 inline sf::View uiView(sf::FloatRect(0.f, 0.f, UI_WIDTH, UI_HEIGHT));

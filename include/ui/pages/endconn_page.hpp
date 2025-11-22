@@ -1,7 +1,7 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include <string>
-#include "ui/common/ui_state.hpp"
+#include "ui/widgets/label.hpp"
+#include "ui/widgets/button.hpp"
+#include "app/app.hpp"
 
 void runEndConnPage(
     sf::RenderWindow& window,

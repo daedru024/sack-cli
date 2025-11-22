@@ -1,6 +1,6 @@
 #include "app/app.hpp"
 
-const char servip[10] = "127.0.0.1";
+const std::string servip = "127.0.0.1";
 
 std::vector<Room> rooms;
 GamePlay gameData;

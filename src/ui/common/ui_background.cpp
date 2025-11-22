@@ -1,5 +1,4 @@
 #include "ui/common/ui_background.hpp"
-#include <algorithm>
 
 sf::Texture& g_bgTex() {
     static sf::Texture tex;

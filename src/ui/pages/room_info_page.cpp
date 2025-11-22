@@ -1,13 +1,6 @@
 #include "ui/pages/room_info_page.hpp"
-#include "ui/common/ui_background.hpp"
-#include "ui/common/ui_common.hpp"
-
-#include <algorithm>
-#include <iostream>
-
-extern std::vector<Room> rooms;
-extern GamePlay gameData;
-extern int currentRoomIndex;
+// #include "ui/common/ui_background.hpp"
+// #include "ui/common/ui_common.hpp"
 
 void runRoomInfoPage(
     sf::RenderWindow& window,

@@ -1,9 +1,7 @@
 #pragma once
-#include <SFML/Graphics.hpp>
-#include <string>
-#include "ui/common/ui_state.hpp"
-#include "room.hpp"
-#include "libcliwrap.h"
+#include "app/app.hpp"
+#include <algorithm>
+#include <iostream>
 
 void runRoomInfoPage(
     sf::RenderWindow& window,

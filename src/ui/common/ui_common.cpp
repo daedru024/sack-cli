@@ -1,5 +1,4 @@
 #include "ui/common/ui_common.hpp"
-#include "ui/common/ui_background.hpp"
 
 void loadFontSafe(sf::Font& font)
 {
