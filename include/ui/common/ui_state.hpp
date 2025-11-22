@@ -9,3 +9,12 @@ enum class State {
     ReEstablish,
     EndConn
 };
+
+enum class EndReason {
+    None,
+    RoomsFull,
+    UserExit,
+    WrongKeyTooMany,
+    Timeout
+};
+

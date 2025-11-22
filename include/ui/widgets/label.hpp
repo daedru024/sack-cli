@@ -1,6 +1,6 @@
 #pragma once
 #include <SFML/Graphics.hpp>
-#include "ui_element.hpp"
+#include "ui/widgets/ui_element.hpp
 
 class Label {
 public:

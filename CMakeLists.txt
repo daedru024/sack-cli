@@ -22,7 +22,25 @@ target_include_directories(libcliwrap PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 target_link_libraries(libcliwrap PUBLIC libcli)
 target_compile_features(libcliwrap PUBLIC cxx_std_17)
 
-add_executable(main src/main.cpp)
+file(GLOB UI_COMMON_SRC
+    src/ui/common/*.cpp
+)
+
+file(GLOB UI_PAGES_SRC
+    src/ui/pages/*.cpp
+)
+
+file(GLOB UI_WIDGETS_SRC
+    src/ui/widgets/*.cpp
+)
+
+add_executable(main
+    src/main.cpp
+    ${UI_COMMON_SRC}
+    ${UI_PAGES_SRC}
+    ${UI_WIDGETS_SRC}
+)
+
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(main PRIVATE sfml-graphics libcliwrap)
 target_compile_features(main PRIVATE cxx_std_17)
@@ -36,6 +54,8 @@ if(WIN32)
     add_custom_command(
         TARGET main
         COMMENT "Copy OpenAL DLL"
-        PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SFML_SOURCE_DIR}/extlibs/bin/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>/openal32.dll $<TARGET_FILE_DIR:main>
+        PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy 
+        ${SFML_SOURCE_DIR}/extlibs/bin/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>/openal32.dll 
+        $<TARGET_FILE_DIR:main>
         VERBATIM)
 endif()
