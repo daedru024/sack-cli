@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <iostream>
 
-// ===== Color table =====
-extern const std::array<sf::Color, 5> PLAYER_COLORS;
 
 void runInRoomPage(
     sf::RenderWindow &window,

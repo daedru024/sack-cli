@@ -1,25 +1,49 @@
-#pragma once
+#ifndef LABEL_HPP
+#define LABEL_HPP
+
 #include <SFML/Graphics.hpp>
-#include "ui/widgets/ui_element.hpp"
+#include <string>
+#include "ui/common/ui_common.hpp"
 
 class Label {
 public:
     sf::Text text;
 
-    Label(sf::Font* font, std::string str, float x, float y, int size = 30, 
-          sf::Color color = sf::Color::White, 
-          sf::Color outlineColor = sf::Color::Black,
-          float outline = 3.f) 
+    Label(const sf::Font* font,
+          const std::string& str,
+          float x, float y,
+          int size,
+          sf::Color col = sf::Color::Black,
+          sf::Color outline = sf::Color::Transparent,
+          float outlineThickness = 0.f)
     {
         text.setFont(*font);
-        text.setString(str);
         text.setCharacterSize(size);
-        text.setFillColor(color);
-        text.setOutlineColor(outlineColor);
-        text.setOutlineThickness(outline);
+
+        text.setString(toUtf32(str));   // ★ 支援中文
+
+        text.setFillColor(col);
+        text.setOutlineColor(outline);
+        text.setOutlineThickness(outlineThickness);
+
         text.setPosition(x, y);
     }
 
-    void set(std::string s) { text.setString(s); }
-    void draw(sf::RenderWindow& win) { win.draw(text); }
+    void set(const std::string& str)
+    {
+        text.setString(toUtf32(str));   // ★ 支援中文
+    }
+
+    void centerText()
+    {
+        auto b = text.getLocalBounds();
+        text.setOrigin(b.left + b.width/2.f, b.top + b.height/2.f);
+    }
+
+    void draw(sf::RenderWindow& window)
+    {
+        window.draw(text);
+    }
 };
+
+#endif

@@ -1,155 +1,255 @@
 #include "ui/pages/room_info_page.hpp"
-// #include "ui/common/ui_background.hpp"
-// #include "ui/common/ui_common.hpp"
+#include "libcliwrap.hpp"
+#include "ui/common/ui_common.hpp"
+#include "ui/common/ui_background.hpp"
 
+#include <sstream>
+#include <algorithm>
+
+extern std::vector<Room> rooms;
+extern GamePlay gameData;
+extern int currentRoomIndex;
+extern sf::View uiView;
+extern void drawBackground(sf::RenderWindow&);
+extern bool UI_TEST_MODE;
+
+namespace RInfo {
+    constexpr float WIDTH        = 800.f;
+    constexpr float HEIGHT       = 600.f;
+
+    constexpr float LIST_LEFT_X  = 60.f;
+    constexpr float LIST_TOP_Y   = 110.f;
+    constexpr float ROOM_BTN_W   = 400.f;
+    constexpr float ROOM_BTN_H   = 80.f;
+    constexpr float ROOM_BTN_GAP = 30.f;
+
+    constexpr float PANEL_X      = LIST_LEFT_X + ROOM_BTN_W + 30.f;
+    constexpr float PANEL_Y      = LIST_TOP_Y;
+    constexpr float PANEL_W      = 240.f;
+    constexpr float PANEL_H      = 340.f;
+
+    constexpr float TITLE_Y      = 50.f;
+
+    constexpr int PASS_LEN     = 4;
+    constexpr float PASS_W       = 40.f;
+    constexpr float PASS_H       = 50.f;
+    constexpr float PASS_GAP     = 12.f;
+
+    constexpr float SELECTED_Y   = PANEL_Y + 20.f;
+    constexpr float PASS_LABEL_Y = PANEL_Y + 110.f;
+    constexpr float PASS_BOX_Y   = PANEL_Y + 150.f;
+    constexpr float ERROR_Y      = PANEL_Y + 210.f;
+    constexpr float JOIN_BTN_Y   = PANEL_Y + 280.f;
+
+    constexpr float EXIT_W       = 120.f;
+    constexpr float EXIT_H       = 40.f;
+
+    constexpr float TIMER_Y      = 520.f;
+}
+
+static float btnCenterY(int idx) {
+    using namespace RInfo;
+    return LIST_TOP_Y + ROOM_BTN_H/2.f + idx * (ROOM_BTN_H + ROOM_BTN_GAP);
+}
+
+static float passBoxX(int idx) {
+    using namespace RInfo;
+    float total = PASS_LEN * PASS_W + (PASS_LEN - 1) * PASS_GAP;
+    float start = PANEL_X + (PANEL_W - total) / 2.f;
+    return start + idx * (PASS_W + PASS_GAP);
+}
 void runRoomInfoPage(
     sf::RenderWindow& window,
     State& state,
     EndReason& reason,
     const std::string& username
 ){
+    using namespace RInfo;
+
     sf::Font font;
     loadFontSafe(font);
 
-    Label title(&font, "Select a Room", 200, 40, 50,
-                sf::Color::White, sf::Color::Black, 4);
+    // ---- 初始化房間資訊 ----
+    gameData.GetRoomInfo(rooms);
+    if ((int)rooms.size() < 3) rooms.resize(3);
 
-    Button exitBtn(&font, "Exit", 650, 20, 120, 40);
+    int selected = -1;
+    bool needsKey = false;
+    std::string keyInput;
+    std::string errorMsg;
+    int wrongKeyCount = 0;
 
-    Button roomBtn[3] = {
-        Button(&font, "Room 1", 120, 140, 360, 80),
-        Button(&font, "Room 2", 120, 260, 360, 80),
-        Button(&font, "Room 3", 120, 380, 360, 80)
+    sf::Clock timer;
+
+    auto canClickRoom = [&](int i) {
+        Room& r = rooms[i];
+        return (!r.isPlaying() && !r.isFull());
     };
 
-    const int PASS_LEN = 4;
-    std::string keyInput;
+    auto tryJoin = [&](int idx) -> bool {
+        Room& r = rooms[idx];
+        errorMsg.clear();
+
+        if (r.isPrivate && (int)keyInput.size() < PASS_LEN) {
+            errorMsg = "Please enter 4-digit password.";
+            return false;
+        }
+
+        int er = (r.isPrivate ?
+                 gameData.JoinRoom(idx, keyInput) :
+                 gameData.JoinRoom(idx));
+
+        switch (er) {
+            case SUCCESS:
+                currentRoomIndex = idx;
+                state = (gameData.myRoom.n_players == 1 ?
+                         State::HostSetting :
+                         State::InRoom);
+                return true;
+
+            case ROOM_FULL:     errorMsg = "Room full."; break;
+            case ROOM_LOCKED:   errorMsg = "Room locked."; break;
+            case ROOM_PRIVATE:  errorMsg = "Room is private."; break;
+
+            case WRONG_PIN:
+                wrongKeyCount++;
+                errorMsg = "Wrong password (" + std::to_string(wrongKeyCount) + "/3)";
+                keyInput.clear();
+                if (wrongKeyCount >= 3) {
+                    reason = EndReason::WrongKeyTooMany;
+                    state = State::EndConn;
+                    return true;
+                }
+                break;
+
+            case ROOM_PLAYING:  errorMsg = "Room playing."; break;
+            default:
+                errorMsg = "Unknown error: " + std::to_string(er);
+                break;
+        }
+        return false;
+    };
+
+    // ---- UI Components ----
+    Label title(&font, "Select a Room",
+                LIST_LEFT_X + ROOM_BTN_W/2.f,
+                TITLE_Y, 50,
+                sf::Color::White, sf::Color::Black, 4);
+    title.centerText();
+
+    Button exitBtn(&font, "Exit",
+                   WIDTH - EXIT_W/2.f - 20.f,
+                   20.f + EXIT_H/2.f,
+                   EXIT_W, EXIT_H, true);
+
+    Button roomBtn[3] = {
+        Button(&font, "Room 1", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(0), ROOM_BTN_W, ROOM_BTN_H, true),
+        Button(&font, "Room 2", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(1), ROOM_BTN_W, ROOM_BTN_H, true),
+        Button(&font, "Room 3", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(2), ROOM_BTN_W, ROOM_BTN_H, true)
+    };
+
+    sf::RectangleShape rightPanel({PANEL_W, PANEL_H});
+    rightPanel.setPosition(PANEL_X, PANEL_Y);
+    rightPanel.setFillColor(sf::Color(255,255,255,220));
+    rightPanel.setOutlineColor(sf::Color(120,120,120));
+    rightPanel.setOutlineThickness(3.f);
+
+    Label selectedLabel(&font, "", PANEL_X + PANEL_W/2.f,
+                        SELECTED_Y, 24, sf::Color::Black);
+    selectedLabel.centerText();
+
+    Label passLabel(&font, "Password (4 digits)",
+                    PANEL_X + PANEL_W/2.f,
+                    PASS_LABEL_Y, 22, sf::Color::Black);
+    passLabel.centerText();
+
+    Label errorLabel(&font, "",
+                     PANEL_X + PANEL_W/2.f,
+                     ERROR_Y, 20, sf::Color(220,50,50));
+    errorLabel.centerText();
+
+    Button joinBtn(&font, "JOIN",
+                   PANEL_X + PANEL_W/2.f, JOIN_BTN_Y,
+                   180.f, 60.f, true);
 
     sf::RectangleShape passBox[PASS_LEN];
-    for (int i = 0; i < PASS_LEN; i++) {
-        passBox[i].setSize({40, 50});
+    for (int i=0;i<PASS_LEN;i++){
+        passBox[i].setSize({PASS_W, PASS_H});
         passBox[i].setFillColor(sf::Color(255,255,255,230));
         passBox[i].setOutlineColor(sf::Color::Black);
         passBox[i].setOutlineThickness(3);
     }
-
-    Label passLabel(&font, "Password (4 digits)", 520, 205, 22,
-                    sf::Color::White, sf::Color::Black, 2);
-
-    Button joinBtn(&font, "JOIN", 520, 360, 150, 60);
-
-    Label selectedLabel(&font, "", 500, 150, 24,
-                        sf::Color::White, sf::Color::Black, 3);
-
-    int  selected      = -1;
-    bool needsKey      = false;
-    std::string errorMsg;
-    int  wrongKeyCount = 0;
-
-    sf::Clock timer;
-
-
+        // ============================================================
+    // Main loop
+    // ============================================================
     while (window.isOpen() && state == State::RoomInfo)
     {
-        sf::Event event;
-        while (window.pollEvent(event))
+        sf::Event e;
+        while (window.pollEvent(e))
         {
-            if (event.type == sf::Event::Closed)
+            if (e.type == sf::Event::Closed)
                 window.close();
 
-            // EXIT
-            if (exitBtn.clicked(event, window)) {
+            if (exitBtn.clicked(e, window)) {
                 reason = EndReason::UserExit;
                 state = State::EndConn;
                 return;
             }
 
-            auto canClick = [&](int i) {
-                Room& r = rooms[i];
-                if (r.inGame) return false;
-                if (r.isFull()) return false;
-                return true;
-            };
-
-            // ===== Select room =====
-            for (int i = 0; i < 3; i++)
-            {
-                if (canClick(i) && roomBtn[i].clicked(event, window))
-                {
+            // ---- 點選房間 ----
+            for (int i = 0; i < 3; i++) {
+                if (canClickRoom(i) && roomBtn[i].clicked(e, window)) {
                     selected = i;
-                    Room& r = rooms[i];
-
-                    needsKey = (r.isPrivate && !r.playerNames.empty());
                     keyInput.clear();
                     errorMsg.clear();
+                    wrongKeyCount = 0;
+                    needsKey = rooms[i].isPrivate;
 
-                    selectedLabel.text.setString("Selected: " + r.name);
+                    selectedLabel.set("Selected: " + rooms[i].name);
+                    selectedLabel.centerText();
                 }
             }
 
-            // ===== Password typing =====
-            if (needsKey && selected != -1 &&
-                event.type == sf::Event::TextEntered)
+            // ---- 密碼輸入 ----
+            if (needsKey && selected != -1)
             {
-                if (event.text.unicode >= '0' && event.text.unicode <= '9') {
-                    if (keyInput.size() < PASS_LEN)
-                        keyInput.push_back((char)event.text.unicode);
-                }
-                if (event.text.unicode == 8 && !keyInput.empty())
-                    keyInput.pop_back();
-            }
-
-            // ===== JOIN =====
-            if (selected != -1 && joinBtn.clicked(event, window))
-            {
-                int er;
-                if (rooms[selected].isPrivate)
-                    er = gameData.JoinRoom(selected, keyInput);
-                else
-                    er = gameData.JoinRoom(selected);
-
-                switch (er)
+                if (e.type == sf::Event::TextEntered)
                 {
-                    case ROOM_FULL:
-                        errorMsg = "Room is full.";
-                        break;
-
-                    case ROOM_LOCKED:
-                        errorMsg = "Room is locked.";
-                        break;
-
-                    case ROOM_PRIVATE:
-                        errorMsg = "Room is private.";
-                        break;
-
-                    case WRONG_PIN:
-                        errorMsg = "Wrong password!";
-                        keyInput.clear();
-                        wrongKeyCount++;
-                        if (wrongKeyCount >= 3) {
-                            reason = EndReason::WrongKeyTooMany;
-                            state = State::EndConn;
-                        }
-                        break;
-
-                    case ROOM_PLAYING:
-                        errorMsg = "Room is already playing.";
-                        break;
-
-                    default: // Success
-                        currentRoomIndex = selected;
-
-                        if (gameData.myRoom.n_players == 1)
-                            state = State::HostSetting;
-                        else
-                            state = State::InRoom;
-
-                        return;
+                    if (e.text.unicode >= '0' && e.text.unicode <= '9')
+                    {
+                        if ((int)keyInput.size() < PASS_LEN)
+                            keyInput.push_back((char)e.text.unicode);
+                    }
+                    else if (e.text.unicode == 8) // backspace
+                    {
+                        if (!keyInput.empty())
+                            keyInput.pop_back();
+                    }
                 }
+
+                // Enter to Join
+                if (e.type == sf::Event::KeyPressed &&
+                    e.key.code == sf::Keyboard::Enter &&
+                    (int)keyInput.size() == PASS_LEN)
+                {
+                    if (tryJoin(selected)) return;
+                }
+
+                if (!errorMsg.empty() &&
+                    (e.type == sf::Event::TextEntered ||
+                     e.type == sf::Event::KeyPressed))
+                {
+                    errorMsg.clear();
+                }
+            }
+
+            // ---- JOIN button ----
+            if (selected != -1 && joinBtn.clicked(e, window)) {
+                if (tryJoin(selected)) return;
             }
         }
 
-        // ============ 60s timeout ============
+        // ---- Timeout ----
         float remain = 60.f - timer.getElapsedTime().asSeconds();
         if (remain <= 0.f) {
             reason = EndReason::Timeout;
@@ -157,102 +257,117 @@ void runRoomInfoPage(
             return;
         }
 
-        // ============================================================ Rendering
-
+        // ---- 更新 Buttons ----
         exitBtn.update(window);
-        for (auto &b : roomBtn) b.update(window);
-        joinBtn.update(window);
+        bool joinEnabled = (selected != -1) &&
+                           (!needsKey || (int)keyInput.size() == PASS_LEN);
+        joinBtn.setDisabled(!joinEnabled);
+        if (joinEnabled) joinBtn.update(window);
 
+        // ============================================================
+        // Draw
+        // ============================================================
         window.setView(uiView);
         window.clear();
-
         drawBackground(window);
 
+        // Title
         title.draw(window);
         exitBtn.draw(window);
 
-        // Timer
-        sf::Text timerText("Time left: " + std::to_string((int)remain) + "s",
-                           font, 26);
-        timerText.setFillColor(sf::Color::White);
-        timerText.setOutlineColor(sf::Color::Black);
-        timerText.setOutlineThickness(2);
-        timerText.setPosition(300, 520);
-        window.draw(timerText);
+        // Countdown timer
+        std::ostringstream oss;
+        oss << "Time left: " << (int)remain << "s";
+        sf::Text timerTx = mkCenterText(font, oss.str(), 24, sf::Color::White);
+        timerTx.setOutlineColor(sf::Color::Black);
+        timerTx.setOutlineThickness(2.f);
+        timerTx.setPosition(LIST_LEFT_X + ROOM_BTN_W / 2.f, TIMER_Y);
+        window.draw(timerTx);
 
-        // -------- Room List --------
+        // ============================================================
+        // 左側房間列表
+        // ============================================================
         for (int i = 0; i < 3; i++)
         {
-            Room&   r = rooms[i];
+            Room& r = rooms[i];
             Button& b = roomBtn[i];
 
-            bool full = r.isFull();
+            bool clickable = canClickRoom(i);
 
-            sf::Color base(210,230,250);
-            if (full)      base = sf::Color(180,180,180);
-            if (r.inGame)  base = sf::Color(255,215,180);
-            if (selected == i) base = sf::Color(255,240,140);
+            sf::Color base = sf::Color(210,230,250);
+            if (!clickable)
+                base = r.isPlaying()? sf::Color(200,150,150,200)
+                                     : sf::Color(150,150,150,200);
+            if (selected == i)
+                base = sf::Color(255,240,140);
 
+            b.setDisabled(!clickable);
             b.shape.setFillColor(base);
-            b.text.setString("");
             b.draw(window);
 
-            // Host
-            sf::Text hostTx(
-                r.hostName().empty() ? "Host: -" : "Host: " + r.hostName(),
-                font, 20
-            );
-            hostTx.setFillColor(sf::Color::Black);
-            hostTx.setPosition(b.shape.getPosition().x + 12,
-                               b.shape.getPosition().y + 8);
-            window.draw(hostTx);
+            float cx = b.shape.getPosition().x;
+            float cy = b.shape.getPosition().y;
+            float left = cx - b.shape.getSize().x/2.f + 12;
 
-            // Room name
-            sf::Text roomName(r.name, font, 28);
-            roomName.setFillColor(sf::Color::Black);
-            roomName.setPosition(b.shape.getPosition().x + 130,
-                                 b.shape.getPosition().y + 25);
-            window.draw(roomName);
+            // Host
+            sf::Text host = mkCenterText(
+                font, "Host: " + (r.hostName().empty()? "-" : r.hostName()),
+                18, sf::Color::Black);
+            host.setOrigin(0, host.getOrigin().y);
+            host.setPosition(left, cy - 28);
+            window.draw(host);
+
+            // Room Name
+            sf::Text rn = mkCenterText(font, r.name, 26, sf::Color::Black);
+            rn.setPosition(cx, cy - 3);
+            window.draw(rn);
 
             // Status
-            std::string status;
-            if (r.playerNames.empty())
-                status = "Empty room";
-            else {
-                status = std::to_string(r.n_players) + " players";
-                if (r.locked)
-                    status += " (Locked)";
-            }
+            std::string st;
+            if (r.isPlaying()) st = "PLAYING";
+            else if (r.isFull()) st = "FULL";
+            else if (r.playerNames.empty()) st = "Empty room";
+            else st = std::to_string(r.n_players) + " players";
 
-            sf::Text st(status, font, 20);
-            st.setFillColor(sf::Color::Black);
-            st.setPosition(b.shape.getPosition().x + 12,
-                           b.shape.getPosition().y + 55);
-            window.draw(st);
+            if (r.isLocked() && !r.isPlaying() && !r.isFull())
+                st += " (Locked)";
 
-            // PRIVATE
+            sf::Text stTx = mkCenterText(font, st, 18, sf::Color::Black);
+            stTx.setOrigin(0, stTx.getOrigin().y);
+            stTx.setPosition(left, cy + 10);
+            window.draw(stTx);
+
+            // PRIVATE tag
             if (r.isPrivate) {
-                sf::RectangleShape tag({80,22});
+                sf::RectangleShape tag({78,22});
                 tag.setFillColor(sf::Color(255,200,200));
                 tag.setOutlineColor(sf::Color(180,30,30));
                 tag.setOutlineThickness(2);
-                tag.setPosition(
-                    b.shape.getPosition().x + b.shape.getSize().x - 90,
-                    b.shape.getPosition().y + 28
-                );
+
+                float right = cx + b.shape.getSize().x/2.f - 84;
+                tag.setPosition(right, cy - 35);
                 window.draw(tag);
 
-                sf::Text tx("PRIVATE", font, 14);
-                tx.setFillColor(sf::Color(180,30,30));
-                tx.setPosition(tag.getPosition().x + 8,
-                               tag.getPosition().y + 2);
-                window.draw(tx);
+                sf::Text t = mkCenterText(font, "PRIVATE", 14, sf::Color(180,30,30));
+                t.setPosition(right + 39, cy - 24);
+                window.draw(t);
             }
         }
 
-        // -------- Right Panel --------
-        if (selected != -1)
-        {
+        // ============================================================
+        // 右側面板
+        // ============================================================
+        window.draw(rightPanel);
+
+        if (selected == -1) {
+            sf::Text hint = mkCenterText(
+                font, "Click a room on the left.", 20,
+                sf::Color(100,100,100));
+            hint.setPosition(PANEL_X + PANEL_W / 2.f,
+                             PANEL_Y + PANEL_H / 2.f);
+            window.draw(hint);
+        }
+        else {
             selectedLabel.draw(window);
             joinBtn.draw(window);
 
@@ -262,26 +377,40 @@ void runRoomInfoPage(
 
                 for (int i = 0; i < PASS_LEN; i++)
                 {
-                    passBox[i].setPosition(520 + i * 55.f, 240);
+                    float x = passBoxX(i);
+                    bool focus = (i == (int)keyInput.size() &&
+                                  (int)keyInput.size() < PASS_LEN);
+
+                    passBox[i].setPosition(x, PASS_BOX_Y);
+                    passBox[i].setOutlineColor(
+                        focus ? sf::Color(0,140,255)
+                              : sf::Color::Black);
+                    passBox[i].setOutlineThickness(focus ? 4 : 3);
                     window.draw(passBox[i]);
 
-                    if (i < (int)keyInput.size()) {
-                        sf::Text digit(std::string(1, keyInput[i]), font, 32);
-                        digit.setFillColor(sf::Color::Black);
-                        digit.setPosition(528 + i * 55.f, 238);
-                        window.draw(digit);
+                    if (i < (int)keyInput.size())
+                    {
+                        sf::Text d = mkCenterText(
+                            font, std::string(1, keyInput[i]),
+                            28, sf::Color::Black);
+                        d.setPosition(
+                            x + PASS_W/2.f,
+                            PASS_BOX_Y + PASS_H/2.f
+                        );
+                        window.draw(d);
                     }
                 }
             }
 
             if (!errorMsg.empty()) {
-                sf::Text e(errorMsg, font, 20);
-                e.setFillColor(sf::Color::Red);
-                e.setPosition(520, 305);
-                window.draw(e);
+                errorLabel.set(errorMsg);
+                errorLabel.centerText();
+                errorLabel.draw(window);
             }
         }
 
         window.display();
     }
 }
+
+

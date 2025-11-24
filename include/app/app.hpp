@@ -11,7 +11,7 @@
 // Game Data
 // =====================
 #include "room.hpp"
-#include "libcliwrap.h"
+#include "libcliwrap.hpp"
 
 // =====================
 // Global UI (800x600 view + background)
@@ -27,6 +27,7 @@
 #include "ui/pages/host_setting_page.hpp"
 #include "ui/pages/in_room_page.hpp"
 #include "ui/pages/room_info_page.hpp"
+#include "ui/pages/rules_page.hpp"
 #include "ui/pages/username_page.hpp"
 
 // =====================
@@ -44,3 +45,5 @@ extern int currentRoomIndex;
 extern const std::string servip;
 extern const float UI_WIDTH;
 extern const float UI_HEIGHT;
+extern bool UI_TEST_MODE;
+

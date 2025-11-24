@@ -6,6 +6,7 @@ enum class State {
     InRoom,
     GameStart,
     HostSetting,
+    Rules,
     ReEstablish,
     EndConn
 };
