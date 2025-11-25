@@ -5,8 +5,8 @@
 class Room {
 public:
     bool isPrivate;
-    bool locked;        // 房間是否 locked（host 設定）
-    int inGame;         // 是否正在遊戲中 0=否, 1=是
+    bool locked;
+    int inGame;         // stage of game; 0 if not playing
     int id;
     int n_players;
 
@@ -16,7 +16,7 @@ public:
     std::string name;
     std::string password;
 
-    Room() {};
+    Room() {}
     Room(int id)
         : isPrivate(false),
           locked(false),
@@ -29,7 +29,6 @@ public:
           password("0000")
     {}
 
-    // ✔ 完全修正 — 不要把 locked 或 inGame 當成 isFull
     bool isFull() const {
         return n_players >= 5;
     }
