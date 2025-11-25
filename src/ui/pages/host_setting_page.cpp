@@ -15,17 +15,14 @@ namespace HostUI {
     constexpr float HEIGHT = 600.f;
     constexpr float CENTER_X = WIDTH / 2.f;
 
-    // Title / Host Name
     constexpr float TITLE_Y      = 60.f;
     constexpr float HOST_LABEL_Y = 120.f;
 
-    // Public / Private buttons
     constexpr float BTN_Y        = 190.f;
     constexpr float BTN_W        = 220.f;
     constexpr float BTN_H        = 60.f;
     constexpr float BTN_GAP      = 40.f;
 
-    // Password input
     constexpr int   PASS_LEN     = 4;
     constexpr float PASS_W       = 50.f;
     constexpr float PASS_H       = 60.f;
@@ -35,16 +32,15 @@ namespace HostUI {
     constexpr float PASS_BOX_Y   = 315.f;
     constexpr float ERROR_MSG_Y  = PASS_BOX_Y + 90.f;
 
-    // Confirm button
     constexpr float CONFIRM_Y    = 430.f;
     constexpr float CONFIRM_W    = 240.f;
     constexpr float CONFIRM_H    = 70.f;
 }
 
 
-// ─────────────────────────────────────────────
+// ===========================================================
 // Main
-// ─────────────────────────────────────────────
+// ===========================================================
 void runHostSettingPage(
     sf::RenderWindow& window,
     State& state,
@@ -57,7 +53,6 @@ void runHostSettingPage(
     sf::Font font;
     loadFontSafe(font);
 
-    // Title
     Label title(&font, "Room Privacy",
                 CENTER_X, TITLE_Y, 48,
                 sf::Color::White, sf::Color::Black, 4);
@@ -68,7 +63,6 @@ void runHostSettingPage(
                     sf::Color::White, sf::Color::Black, 2);
     hostLabel.centerText();
 
-    // Buttons
     Button publicBtn(&font, "Public",
                      CENTER_X - BTN_W/2.f - BTN_GAP/2.f, BTN_Y,
                      BTN_W, BTN_H, true);
@@ -77,9 +71,8 @@ void runHostSettingPage(
                       CENTER_X + BTN_W/2.f + BTN_GAP/2.f, BTN_Y,
                       BTN_W, BTN_H, true);
 
-    bool isPrivate = room.isPrivate;
+    bool isPrivate = room.isPrivate;   // server 狀態
 
-    // Password label
     Label pwLabel(&font, "Password (4 digits)",
                   CENTER_X, PASS_LABEL_Y, 22,
                   sf::Color::Black, sf::Color::Transparent, 0);
@@ -100,7 +93,9 @@ void runHostSettingPage(
                       CENTER_X, CONFIRM_Y,
                       CONFIRM_W, CONFIRM_H, true);
 
-    // ───────────── MAIN LOOP ─────────────
+    // ======================================================
+    // LOOP
+    // ======================================================
     while (window.isOpen() && state == State::HostSetting)
     {
         sf::Event e;
@@ -108,7 +103,7 @@ void runHostSettingPage(
         {
             if (e.type == sf::Event::Closed) window.close();
 
-            // toggle privacy
+            // toggle privacy (server 還沒改，只改 UI)
             if (publicBtn.clicked(e, window)) {
                 isPrivate = false;
                 pwBuf.clear();
@@ -134,14 +129,15 @@ void runHostSettingPage(
                 if (!errorMsg.empty()) errorMsg.clear();
             }
 
+            // Confirm
             bool wantConfirm =
                 confirmBtn.clicked(e, window) ||
                 (e.type == sf::Event::KeyPressed && e.key.code == sf::Keyboard::Enter);
 
             if (wantConfirm)
             {
+                int err = 0;
 
-                // set Private
                 if (isPrivate)
                 {
                     if (pwBuf.size() != PASS_LEN)
@@ -150,35 +146,34 @@ void runHostSettingPage(
                         continue;
                     }
 
-                    if (gameData.MakePrivate(pwBuf) != 0) {
+                    err = gameData.MakePrivate(pwBuf);
+                    if (err != SUCCESS) {
                         errorMsg = "Server refused PIN.";
                         continue;
                     }
                 }
                 else
                 {
-                    // set Public
-                    if (gameData.MakePublic() != 0) {
+                    err = gameData.MakePublic();
+                    if (err != SUCCESS) {
                         errorMsg = "Server rejected public setting.";
                         continue;
                     }
                 }
 
-                // local update
-                room.isPrivate = isPrivate;
-                room.password = isPrivate ? pwBuf : "";
-
-                state = State::InRoom;
+                // 不更新 room，避免 client 假資料
+                // 完成後直接回 RoomInfoPage，由那邊重新 GetRoomInfo()
+                state = State::RoomInfo;
                 return;
             }
         }
 
-        // update UI hover
+        // ===== UI 更新 =====
         publicBtn.update(window);
         privateBtn.update(window);
         confirmBtn.update(window);
 
-        // draw
+        // ===== Draw =====
         window.setView(uiView);
         window.clear();
         drawBackground(window);
@@ -186,7 +181,6 @@ void runHostSettingPage(
         title.draw(window);
         hostLabel.draw(window);
 
-        // Highlight public/private buttons
         publicBtn.shape.setFillColor(
             !isPrivate ? sf::Color(180,230,180) : sf::Color(210,210,210)
         );
@@ -197,7 +191,6 @@ void runHostSettingPage(
         publicBtn.draw(window);
         privateBtn.draw(window);
 
-        // Password UI
         if (isPrivate)
         {
             pwLabel.draw(window);
@@ -216,7 +209,6 @@ void runHostSettingPage(
 
                 window.draw(pwBox[i]);
 
-                // draw digit
                 if (i < (int)pwBuf.size())
                 {
                     sf::Text d = mkCenterText(font, string(1, pwBuf[i]),
@@ -230,7 +222,6 @@ void runHostSettingPage(
             }
         }
 
-        // error message
         if (!errorMsg.empty())
         {
             sf::Text eText = mkCenterText(font, errorMsg, 20, sf::Color::Red);

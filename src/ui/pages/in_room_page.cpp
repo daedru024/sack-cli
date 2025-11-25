@@ -253,12 +253,38 @@ void runInRoomPage(
             if (isHost && lockBtn.clicked(e, window))
             {
                 int curPlayers = room.n_players;
-                if (!room.locked) {
-                    if (curPlayers >= 3)
-                        room.locked = true;
-                } else {
+
+                if (!room.locked)
+                {
+                    // 想 lock
+                    if (curPlayers < 3)
+                    {
+                        std::cout << "Need at least 3 players.\n";
+                    }
+                    else
+                    {
+                        int err = gameData.LockRoom();
+                        if (err == SUCCESS)
+                        {
+                            // server 廣播會更新，UI 不自行設值
+                        }
+                        else if (err == NOT_ENOUGH_PLAYERS)
+                        {
+                            std::cout << "Server: not enough players.\n";
+                        }
+                    }
+                }
+                else
+                {
+                    // 想 unlock
                     if (!room.inGame)
-                        room.locked = false;
+                    {
+                        int err = gameData.UnlockRoom();
+                        if (err == SUCCESS)
+                        {
+                            // server 會廣播 unlock 狀態
+                        }
+                    }
                 }
             }
 
