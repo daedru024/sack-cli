@@ -1,0 +1,180 @@
+#include "libcliwrap.hpp"
+
+/**** ROOMS ****/
+/***************/
+
+// continue playing when game ends
+void GamePlay::ContinuePlay() {
+    EndConn();
+    Connect(servip.c_str());
+}
+
+// choose color
+int GamePlay::ChooseColor(int c) {
+    color = c;
+    //7 {color}
+    std::stringstream ss;
+    ss << "7 " << c;
+    Write(sockfd, ss.str().c_str(), ss.str().length());
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.colors[playerID] != c) 
+        return -1;
+    return 0;
+}
+
+// get room info
+void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    std::stringstream ss(buf);
+    std::string tmp;
+    int k;
+    for(int i=0; i<3; i++) {
+        //ra {RoomID} {n_Players} {username[:] color[:]} {code}
+        //code 1 if need PIN, 0 otherwise
+        //color[i] -1 if player i not ready
+        ss >> tmp;
+        if(tmp == "ra") {
+            ss >> k;
+            if(i != k) err_quit("GetRoomInfo: wrong roomID (%d %d)",i,k);
+            ss >> rooms[i].n_players;
+            for(int j=0; j<rooms[i].n_players; j++) {
+                ss >> rooms[i].playerNames[j] >> rooms[i].colors[j];
+            }
+            ss >> rooms[i].isPrivate;
+        }
+        //ru {RoomID} {n_Players} {rnd}
+        //rnd current round, 0 if room locked
+        else if(tmp == "ru") {
+            ss >> k;
+            if(i != k) err_quit("GetRoomInfo: wrong roomID (%d %d)",i,k);
+            ss >> rooms[i].n_players >> rooms[i].inGame;
+            rooms[i].locked = (rooms[i].inGame == 0);
+        }
+    }
+}
+
+// get room info (specific)
+void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
+    std::stringstream ss(buf);
+    std::string tmp;
+    int k;
+    //broadcasted room info 
+    //in {RoomID} {n_Players} {username[:] color[:]} {locked} {PIN} {playerID}
+    ss >> tmp;
+    if(tmp != "in") 
+        err_quit("GetRoomInfo: recv %s", buf.c_str());
+    ss >> k;
+    if(rid != k) 
+        err_quit("GetRoomInfo: wrong roomID (%d %d)",rid,k);
+    ss >> room.n_players;
+    for(int j=0; j<room.n_players; j++) {
+        ss >> room.playerNames[j] >> room.colors[j];
+    }
+    ss >> room.locked >> room.password >> playerID;
+    room.isPrivate = (room.password != "10000");
+    room.password = room.isPrivate ? room.password : "0000";
+    return;
+}
+
+// join room
+int GamePlay::JoinRoom(int rid) {
+    return JoinRoom(rid, "10000");
+}
+
+// join room (private)
+int GamePlay::JoinRoom(int rid, std::string Pwd) {
+    int PIN = stoi(Pwd);
+    Join(sockfd, rid, UserName.c_str(), PIN);
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    std::stringstream ss(buf);
+    std::string rmerr;
+    ss >> rmerr;
+    if(rmerr == "re") {
+        // 0 Full 1 Locked 2 Private 3 WrongPIN 4 Playing
+        ss >> rid;
+        return rid+1;
+    }
+    if(rmerr != "in") err_quit("recv: %s",buf);
+    myRoom = Room(rid);
+    GetRoomInfo(rid, myRoom, buf);
+    roomID = rid;
+    return 0;
+}
+
+// lock room
+int GamePlay::LockRoom() {
+    if(playerID != 0) return -1;
+    Lock(sockfd);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.locked == false) {
+        if(myRoom.n_players < 3)
+            return NOT_ENOUGH_PLAYERS;
+        return -1;
+    }
+    return 0;
+}
+
+// make room private, return 0 if success
+int GamePlay::MakePrivate(std::string Pwd) {
+    if(playerID != 0) return -1;
+    if(Pwd.size() != 4 && Pwd != "10000") return WRONG_DIGIT;
+    int PIN = stoi(Pwd);
+    Privt(sockfd, PIN);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(Pwd != "10000" && myRoom.password != Pwd) 
+        return PRIVATE_FAIL;
+    return 0;
+}
+
+// make room public, return 0 if success
+int GamePlay::MakePublic() {
+    if(myRoom.isPrivate == false) return 0;
+    return MakePrivate("10000");
+}
+
+// send unlock message
+int GamePlay::UnlockRoom() {
+    if(playerID != 0) return -1;
+    Write(sockfd, "2", 1);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.locked == true) 
+        return -1;
+    return 0;
+}
+
+/**** GAME MECHANISM ****/
+/************************/
+
+// play card
+void GamePlay::Play(int c) {
+    //TODO
+}
+
+// receive bid info
+void GamePlay::RecvBid() {
+    //TODO
+}
+
+// bid
+void GamePlay::SendBid(int amount) {
+    if(amount>rem_money) return;
+    Bid(sockfd, playerID, amount, rem_money);
+}
+
+void GamePlay::Wait() {
+    //TODO
+}
