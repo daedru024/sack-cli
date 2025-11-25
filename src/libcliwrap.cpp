@@ -139,6 +139,7 @@ int GamePlay::MakePrivate(std::string Pwd) {
 
 // make room public, return 0 if success
 int GamePlay::MakePublic() {
+    if(myRoom.isPrivate == false) return 0;
     return MakePrivate("10000");
 }
 
