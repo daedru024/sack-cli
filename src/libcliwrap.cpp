@@ -1,20 +1,5 @@
 #include "libcliwrap.hpp"
 
-
-/**** CONNECTION ****/
-/********************/
-
-// connect to servip
-int GamePlay::Connect(const char* servip) {
-    return Conn(servip);
-}
-
-// end connection
-int GamePlay::EndConn() {
-    Close(sockfd);
-}
-
-
 /**** ROOMS ****/
 /***************/
 
@@ -22,6 +7,22 @@ int GamePlay::EndConn() {
 void GamePlay::ContinuePlay() {
     EndConn();
     Connect(servip.c_str());
+}
+
+// choose color
+int GamePlay::ChooseColor(int c) {
+    color = c;
+    //7 {color}
+    std::stringstream ss;
+    ss << "7 " << c;
+    Write(sockfd, ss.str().c_str(), ss.str().length());
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.colors[playerID] != c) 
+        return -1;
+    return 0;
 }
 
 // get room info
@@ -74,7 +75,8 @@ void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
         ss >> room.playerNames[j] >> room.colors[j];
     }
     ss >> room.locked >> room.password >> playerID;
-    
+    room.isPrivate = (room.password != "10000");
+    room.password = room.isPrivate ? room.password : "0000";
     return;
 }
 
@@ -106,17 +108,51 @@ int GamePlay::JoinRoom(int rid, std::string Pwd) {
 
 // lock room
 int GamePlay::LockRoom() {
-    //TODO
+    if(playerID != 0) return -1;
+    Lock(sockfd);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.locked == false) {
+        if(myRoom.n_players < 3)
+            return NOT_ENOUGH_PLAYERS;
+        return -1;
+    }
+    return 0;
 }
 
 // make room private, return 0 if success
 int GamePlay::MakePrivate(std::string Pwd) {
-    //TODO
+    if(playerID != 0) return -1;
+    if(Pwd.size() != 4 && Pwd != "10000") return WRONG_DIGIT;
+    int PIN = stoi(Pwd);
+    Privt(sockfd, PIN);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(Pwd != "10000" && myRoom.password != Pwd) 
+        return PRIVATE_FAIL;
+    return 0;
 }
 
 // make room public, return 0 if success
 int GamePlay::MakePublic() {
-    //TODO
+    return MakePrivate("10000");
+}
+
+// send unlock message
+int GamePlay::UnlockRoom() {
+    if(playerID != 0) return -1;
+    Write(sockfd, "2", 1);
+    //get broadcasted room info
+    char buf[MAXLINE];
+    Recv(sockfd, buf);
+    GetRoomInfo(roomID, myRoom, buf);
+    if(myRoom.locked == true) 
+        return -1;
+    return 0;
 }
 
 /**** GAME MECHANISM ****/
@@ -136,11 +172,6 @@ void GamePlay::RecvBid() {
 void GamePlay::SendBid(int amount) {
     if(amount>rem_money) return;
     Bid(sockfd, playerID, amount, rem_money);
-}
-
-// send unlock message
-int GamePlay::UnlockRoom() {
-    //TODO
 }
 
 void GamePlay::Wait() {
