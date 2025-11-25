@@ -1,6 +1,5 @@
 #ifndef __lib_cli_wrap
 #define __lib_cli_wrap
-
 #include "libcli.h"
 #include "room.hpp"
 #include <vector>
@@ -8,49 +7,62 @@
 #include <sstream>
 #include <bitset>
 
-// ===== UI 要辨識的 return code =====
-#define SUCCESS        0
-#define ROOM_FULL      1
-#define ROOM_LOCKED    2
-#define ROOM_PRIVATE   3
-#define WRONG_PIN      4
-#define ROOM_PLAYING   5
+#define SUCCESS 0
+#define ROOM_FULL 1
+#define ROOM_LOCKED 2
+#define ROOM_PRIVATE 3
+#define WRONG_PIN 4
+#define ROOM_PLAYING 5
 
 class GamePlay {
-    int sockfd = -1;
-
-public:
+    int sockfd, playerID, rem_money, roomID;
     std::string servip, UserName;
-    int playerID = -1, rem_money = 0, roomID = -1;
+    std::bitset<10> MASKUc, MASKSt;
+public:
     Room myRoom;
+    GamePlay() {}
+    GamePlay(const char* servip, std::string s) : servip(servip), sockfd(Connect(servip)), UserName(s) {}
+    
+    /**** CONNECTION ****/
+    /********************/
+    // connect to servip
+    int Connect(const char* servip); 
+    // is connected (placeholder, will be improved)
+    bool isConnected() { return sockfd >= 0; }
+    // end connection
+    int EndConn();
 
-    GamePlay() = default;
-    GamePlay(const char* ip, const std::string& user);
-
-    // ====== 基本連線 ======
-    int  Connect(const char* ip);
-    bool isConnected() const { return sockfd > 0; }
-    int  getSock() const { return sockfd; }
-    int  EndConn();
-
-    // ====== 房間列表 ======
-    void GetRoomInfo(std::vector<Room>& rooms);
-
-    // ====== 加房間 ======
-    int JoinRoom(int rid);                  // 公開房
-    int JoinRoom(int rid, std::string Pwd); // 私房
-
-    // ====== 房主控制 ======
-    int MakePrivate(std::string Pwd);       // 設為私人 + PIN
-    int UnlockRoom();                       // 設為公開（修正）
-    int LockRoom();                         // 若你 server 有 lock
-
-    // ====== 遊戲 ======
-    void Play(int c);
-    void RecvBid();
-    void SendBid(int amount);
-    void Wait();
+    /**** ROOMS ****/
+    /***************/
+    // continue playing when game ends
     void ContinuePlay();
+    // get room info
+    void GetRoomInfo(std::vector<Room>& rooms);
+    // get room info (specific)
+    void GetRoomInfo(int rid, Room& room, std::string buf);
+    // join room
+    int JoinRoom(int rid);
+    // join room (private)
+    int JoinRoom(int rid, std::string Pwd);
+    // lock room
+    int LockRoom();
+    // make room private, return 0 if success
+    int MakePrivate(std::string Pwd);
+    // make room public, return 0 if success
+    int MakePublic();
+    // send unlock message
+    int UnlockRoom();
+
+    /**** GAME MECHANISM ****/
+    /************************/
+    // play card
+    void Play(int c);
+    // receive bid info
+    void RecvBid();
+    // bid
+    void SendBid(int amount);
+    // TODO
+    void Wait();
 };
 
 #endif

@@ -150,8 +150,7 @@ void runHostSettingPage(
                         continue;
                     }
 
-                    int er = gameData.MakePrivate(pwBuf);
-                    if (er != SUCCESS) {
+                    if (gameData.MakePrivate(pwBuf) != 0) {
                         errorMsg = "Server refused PIN.";
                         continue;
                     }
@@ -159,8 +158,7 @@ void runHostSettingPage(
                 else
                 {
                     // set Public
-                    int er = gameData.UnlockRoom();
-                    if (er != SUCCESS) {
+                    if (gameData.MakePublic() != 0) {
                         errorMsg = "Server rejected public setting.";
                         continue;
                     }
