@@ -4,7 +4,7 @@
 
 // 外部變數
 extern sf::View uiView;
-extern void drawBackground(sf::RenderWindow&);
+extern void drawBackground(sf::RenderWindow&); // background繪製函式
 extern GamePlay gameData;
 extern const std::string servip;
 extern bool UI_TEST_MODE;
@@ -15,34 +15,39 @@ namespace UI {
     constexpr float WIDTH   = 800.f;
     constexpr float HEIGHT  = 600.f;
 
+    // Panel（白色底板）
     constexpr float PANEL_W = 550.f;
     constexpr float PANEL_H = 350.f;
 
     constexpr float CENTER_X = WIDTH  / 2.f;
     constexpr float CENTER_Y = HEIGHT / 2.f;
 
-    // 元素垂直偏移量（從面板中心計算）
+    // 各元件與面板中心的距離
     constexpr float TITLE_Y_OFFSET  = -125.f;
     constexpr float PROMPT_Y_OFFSET = -65.f;
     constexpr float INPUT_Y_OFFSET  = 5.f;
     constexpr float ERROR_Y_OFFSET  = 75.f;
     constexpr float BUTTON_Y_OFFSET = 125.f;
 
+    // Username 輸入框
     constexpr float INPUT_W = 350.f;
     constexpr float INPUT_H = 50.f;
 
+    // start
     constexpr float BTN_W   = 200.f;
     constexpr float BTN_H   = 60.f;
 
+    // exit
     constexpr float EXIT_W  = 120.f;
     constexpr float EXIT_H  = 40.f;
 
+    // rule
     constexpr float RULE_W  = 120.f;
     constexpr float RULE_H  = 40.f;
 }
 
 // ============================================================================
-// Helper: 連線失敗時還原 START 按鈕狀態
+// 在連線失敗時，將 START 按鈕恢復成一般狀態
 // ============================================================================
 static void resetStartButton(Button& btn, Label& err, bool& connecting)
 {

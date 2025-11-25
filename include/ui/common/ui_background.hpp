@@ -3,7 +3,7 @@
 #include "ui/widgets/ui_element.hpp"
 #include <algorithm>
 
-// UI 座標：800×600
+// UI 座標：800×600 （ 左上角　(0,0) 、 右下角 (800,600) ）
 inline sf::View uiView(sf::FloatRect(0.f, 0.f, UI_WIDTH, UI_HEIGHT));
 
 sf::Texture&        g_bgTex();
