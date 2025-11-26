@@ -13,6 +13,9 @@ void GamePlay::ContinuePlay() {
 
 // choose color
 int GamePlay::ChooseColor(int c) {
+#ifdef DEBUG
+    printf("Choosing color %d\n", c);
+#endif
     color = c;
     //7 {color}
     std::stringstream ss;
@@ -29,6 +32,9 @@ int GamePlay::ChooseColor(int c) {
 
 // get room info
 void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
+#ifdef DEBUG
+    printf("Getting room info\n");
+#endif  
     char buf[MAXLINE];
     Recv(sockfd, buf);
     std::stringstream ss(buf);
@@ -61,6 +67,9 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
 
 // get room info (specific)
 void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
+#ifdef DEBUG
+    printf("Getting room %d info\n", rid);
+#endif
     std::stringstream ss(buf);
     std::string tmp;
     int k;
@@ -95,6 +104,9 @@ int GamePlay::JoinRoom(int rid) {
 
 // join room (private)
 int GamePlay::JoinRoom(int rid, std::string Pwd) {
+#ifdef DEBUG
+    printf("Joining room %d with PIN %s\n", rid, Pwd.c_str());
+#endif
     int PIN = stoi(Pwd);
     Join(sockfd, rid, UserName.c_str(), PIN);
     char buf[MAXLINE];
@@ -116,6 +128,9 @@ int GamePlay::JoinRoom(int rid, std::string Pwd) {
 
 // lock room
 int GamePlay::LockRoom() {
+#ifdef DEBUG
+    printf("Locking room %d\n", roomID);
+#endif
     if(playerID != 0) return -1;
     Lock(sockfd);
     //get broadcasted room info
@@ -132,6 +147,9 @@ int GamePlay::LockRoom() {
 
 // make room private, return 0 if success
 int GamePlay::MakePrivate(std::string Pwd) {
+#ifdef DEBUG
+    printf("Making room %d private with PIN %s\n", roomID, Pwd.c_str());
+#endif
     if(playerID != 0) return -1;
     if(Pwd.size() != 4 && Pwd != "10000") return WRONG_DIGIT;
     int PIN = stoi(Pwd);
@@ -157,6 +175,9 @@ int GamePlay::MakePublic() {
 
 // send unlock message
 int GamePlay::UnlockRoom() {
+#ifdef DEBUG
+    printf("Unlocking room %d\n", roomID);
+#endif
     if(playerID != 0) return -1;
     Write(sockfd, "2", 1);
     //get broadcasted room info
