@@ -1,5 +1,7 @@
 #include "libcliwrap.hpp"
 
+#define DEBUG
+
 /**** ROOMS ****/
 /***************/
 
@@ -73,10 +75,16 @@ void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
     ss >> room.n_players;
     for(int j=0; j<room.n_players; j++) {
         ss >> room.playerNames[j] >> room.colors[j];
+#ifdef DEBUG
+        printf("Player %d: %s Color %d\n", j, room.playerNames[j].c_str(), room.colors[j]);
+#endif
     }
     ss >> room.locked >> room.password >> playerID;
+#ifdef DEBUG
+    printf("PlayerID: %d\n", playerID);
+#endif
     room.isPrivate = (room.password != "10000");
-    room.password = room.isPrivate ? room.password : "0000";
+    room.password = room.isPrivate ? room.password : "";
     return;
 }
 
@@ -131,6 +139,10 @@ int GamePlay::MakePrivate(std::string Pwd) {
     //get broadcasted room info
     char buf[MAXLINE];
     Recv(sockfd, buf);
+    if(buf[0] == 'r' && buf[1] == 'e') {
+        // failed
+        return PRIVATE_FAIL;
+    }
     GetRoomInfo(roomID, myRoom, buf);
     if(Pwd != "10000" && myRoom.password != Pwd) 
         return PRIVATE_FAIL;
