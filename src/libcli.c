@@ -11,8 +11,8 @@ int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
 
 int Close(int sockfd) {
     if(shutdown(sockfd, SHUT_WR) == -1) {
-        err_sys("close error");
-        return -1;
+        if(errno == EBADF) return 0;
+        else err_sys("close error");
     }
     return 0;
 }

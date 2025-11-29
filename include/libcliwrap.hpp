@@ -24,7 +24,7 @@ class GamePlay {
 public:
     Room myRoom;
     GamePlay() {}
-    GamePlay(const char* servip, std::string s) : servip(servip), sockfd(Connect(servip)), UserName(s) {}
+    GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
     
     /**** VARIABLES ****/
     /*******************/
@@ -38,11 +38,14 @@ public:
     /**** CONNECTION ****/
     /********************/
     // connect to servip
-    int Connect(const char* servip) { return Conn(servip);}
-    // is connected (placeholder, will be improved)
-    bool isConnected() { return sockfd >= 0; }
+    int Connect();
     // end connection
-    int EndConn() { return Close(sockfd);};
+    int EndConn();
+    // is connected (placeholder, will be improved)
+    bool isConnected();
+    // Connect/reconnect
+    int Reconnect();
+
 
     /**** ROOMS ****/
     /***************/

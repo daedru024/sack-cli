@@ -2,13 +2,38 @@
 
 #define DEBUG
 
+/**** CONNECTION ****/
+/********************/
+// connect to servip
+int GamePlay::Connect() { 
+    return Conn(servip.c_str());
+}
+
+// end connection
+int GamePlay::EndConn() { 
+    return Close(sockfd);
+}
+
+// is connected (placeholder, will be improved)
+bool GamePlay::isConnected() { 
+    return sockfd >= 0; 
+}
+
+// Connect/reconnect
+int GamePlay::Reconnect() {
+    if(sockfd != -1) Close(sockfd);
+    sockfd = Connect();
+    if(sockfd < 0) return -1;
+    return 0;
+}
+
 /**** ROOMS ****/
 /***************/
 
 // continue playing when game ends
 void GamePlay::ContinuePlay() {
     EndConn();
-    Connect(servip.c_str());
+    Connect();
 }
 
 // choose color
