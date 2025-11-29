@@ -77,10 +77,10 @@ int Recv(int sockfd, char* recvline) {
         err_sys("read error");
         return -1;
     }
+    recvline[n] = 0;
 #ifdef DEBUG
     printf("Recv: %s\n", recvline);
 #endif
-    recvline[n] = 0;
     return n;
 }
 
