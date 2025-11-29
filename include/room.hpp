@@ -26,7 +26,7 @@ public:
           playerNames(5, ""),
           colors(5, -1),
           name("Room " + std::to_string(id+1)),
-          password("0000")
+          password("")
     {}
 
     bool isFull() const {

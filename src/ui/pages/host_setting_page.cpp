@@ -6,6 +6,8 @@
 extern sf::View uiView;
 extern GamePlay gameData;
 extern bool UI_TEST_MODE;
+extern std::vector<Room> rooms;
+extern int currentRoomIndex;
 
 
 using std::string;
@@ -161,10 +163,21 @@ void runHostSettingPage(
                     }
                 }
 
-                // 不更新 room，避免 client 假資料
-                // 完成後直接回 RoomInfoPage，由那邊重新 GetRoomInfo()
-                state = State::RoomInfo;
-                return;
+                    // Update shared rooms state from gameData so InRoom UI sees latest data.
+                    int rid = gameData.RoomID();
+                    if (rid >= 0 && rid < (int)rooms.size()) {
+                        rooms[rid] = gameData.myRoom;
+                        currentRoomIndex = rid;
+                    }
+
+                    // If we're the host in that room, go directly into InRoom; otherwise
+                    // go back to RoomInfo to let user re-select.
+                    if (rid == room.id && gameData.PlayerID() == 0) {
+                        state = State::InRoom;
+                    } else {
+                        state = State::RoomInfo;
+                    }
+                    return;
             }
         }
 

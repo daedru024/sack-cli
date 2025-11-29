@@ -125,7 +125,7 @@ void runInRoomPage(
         state = State::RoomInfo;
         return;
     }
-    Room& room = rooms[roomIdx];
+    Room& room = gameData.myRoom; //rooms[roomIdx];
 
     if (room.n_players == 0) {
         room.resetIfEmpty();
@@ -222,7 +222,8 @@ void runInRoomPage(
 
             // ===== Exit =====
             if (exitBtn.clicked(e, window)) {
-                room.resetIfEmpty();
+                //room.resetIfEmpty();
+                isReady[myIndex] = false;
                 state = State::RoomInfo;
                 return;
             }
@@ -235,7 +236,10 @@ void runInRoomPage(
                 } else {
                     isReady[myIndex] = !isReady[myIndex];
 
-                    if (isReady[myIndex]) counting = false;
+                    if (isReady[myIndex]) {
+                        counting = false;
+                        gameData.ChooseColor(colorIndex[myIndex]);
+                    }
                     else {
                         counting = true;
                         idleTimer.restart();
@@ -311,6 +315,14 @@ void runInRoomPage(
             {
                 room.resetIfEmpty();
                 state = State::RoomInfo;
+                return;
+            }
+        }
+
+        if (isReady[myIndex]) {
+            if (gameData.GetRoomInfo() == GAME_START) {
+                //start game
+                state = State::GameStart;
                 return;
             }
         }

@@ -251,26 +251,26 @@ void runUsernamePage(
                 error.centerText();
 
                 // ⭐⭐⭐ UI TEST MODE：不連 server，直接進入房間清單 ⭐⭐⭐
-                if (UI_TEST_MODE) {
-                    gameData = GamePlay();   // no socket
-                    state = State::RoomInfo;
-                    return;
-                }
+                // if (UI_TEST_MODE) {
+                //     gameData = GamePlay();   // no socket
+                //     state = State::RoomInfo;
+                //     return;
+                // }
 
                 // 3. 嘗試連線
                 GamePlay play(servip.c_str(), username);
 
                 // 4. 處理連線結果
-                if (!play.isConnected()) {
+                //if (!play.isConnected()) {
                     // 連線失敗
-                    resetStartButton(startBtn, error, connecting);
-                }
-                else {
+                //    resetStartButton(startBtn, error, connecting);
+                //}
+                //else {
                     // 連線成功
                     gameData = play;
                     state = State::RoomInfo;
                     return;
-                }
+                //}
             } // end tryConnect
         } // end while(pollEvent)
 

@@ -70,6 +70,7 @@ void runRoomInfoPage(
     loadFontSafe(font);
 
     // ---- 初始化房間資訊 ----
+    gameData.Reconnect();
     gameData.GetRoomInfo(rooms);
     if ((int)rooms.size() < 3) rooms.resize(3);
 
