@@ -16,6 +16,7 @@
 #define NOT_ENOUGH_PLAYERS 6
 #define WRONG_DIGIT 7
 #define PRIVATE_FAIL 8
+#define GAME_START 4096
 
 class GamePlay {
     int sockfd, playerID, rem_money, roomID, color;
@@ -57,6 +58,8 @@ public:
     void GetRoomInfo(std::vector<Room>& rooms);
     // get room info (specific)
     void GetRoomInfo(int rid, Room& room, std::string buf);
+    // get room info when in room, catch GAMESTART signal
+    int GetRoomInfo();
     // join room
     int JoinRoom(int rid);
     // join room (private)
@@ -78,8 +81,8 @@ public:
     void RecvBid();
     // bid
     void SendBid(int amount);
-    // TODO
-    void Wait();
+    // wait for GAMESTART signal
+    // void Wait();
 };
 
 #endif

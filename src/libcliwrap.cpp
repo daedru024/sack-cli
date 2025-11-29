@@ -11,7 +11,9 @@ int GamePlay::Connect() {
 
 // end connection
 int GamePlay::EndConn() { 
-    return Close(sockfd);
+    int n = Close(sockfd);
+    sockfd = -1;
+    return n;
 }
 
 // is connected (placeholder, will be improved)
@@ -66,6 +68,7 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
     std::string tmp;
     int k;
     for(int i=0; i<3; i++) {
+        rooms[i] = Room(i);
         //ra {RoomID} {n_Players} {username[:] color[:]} {code}
         //code 1 if need PIN, 0 otherwise
         //color[i] -1 if player i not ready
@@ -101,7 +104,7 @@ void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
     //broadcasted room info 
     //in {RoomID} {n_Players} {username[:] color[:]} {locked} {PIN} {playerID}
     ss >> tmp;
-    if(tmp != "in") 
+    if(tmp != "in") //TODO
         err_quit("GetRoomInfo: recv %s", buf.c_str());
     ss >> k;
     if(rid != k) 
@@ -120,6 +123,20 @@ void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
     room.isPrivate = (room.password != "10000");
     room.password = room.isPrivate ? room.password : "";
     return;
+}
+
+// get room info when already in room
+int GamePlay::GetRoomInfo() {
+    char buf[MAXLINE];
+    if (Recv(sockfd, buf) == -2) return 0;
+    if(strlen(buf) == 0) return 0;
+    std::stringstream ss(buf);
+    std::string s;
+    ss >> s;
+    if(s == "GAMESTART") return GAME_START;
+    s = buf;
+    GetRoomInfo(roomID, myRoom, s);
+    return 0;
 }
 
 // join room
@@ -148,6 +165,9 @@ int GamePlay::JoinRoom(int rid, std::string Pwd) {
     myRoom = Room(rid);
     GetRoomInfo(rid, myRoom, buf);
     roomID = rid;
+#ifdef DEBUG
+    printf("Joined room %d\n", rid);
+#endif
     return 0;
 }
 
@@ -233,6 +253,10 @@ void GamePlay::SendBid(int amount) {
     Bid(sockfd, playerID, amount, rem_money);
 }
 
-void GamePlay::Wait() {
-    //TODO
-}
+// wait for GAMESTART signal
+// void GamePlay::Wait() {
+//     std::string buf = "";
+//     while(buf != "GAMESTART") {
+//         //
+//     }
+// }

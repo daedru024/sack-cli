@@ -69,19 +69,45 @@ int Privt(int sockfd, int PIN) {
     Write(sockfd, buf, strlen(buf));
     return 0;
 }
+int Recv(int sockfd, char *recvline) {
+    fd_set rfds;
+    struct timeval tv;
+    int sel;
 
-int Recv(int sockfd, char* recvline) {
-    int n;
-    n = read(sockfd, recvline, MAXLINE);
-    if(n == -1) {
-        err_sys("read error");
+    FD_ZERO(&rfds);
+    FD_SET(sockfd, &rfds);
+
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+
+    sel = select(sockfd + 1, &rfds, NULL, NULL, &tv);
+    if (sel < 0) {
+        if (errno == EINTR) return -1; 
+        err_sys("Select");
         return -1;
-    }
-    recvline[n] = 0;
+    } else if (sel == 0) {
+        // timeout
 #ifdef DEBUG
-    printf("Recv: %s\n", recvline);
+        printf("Timeout\n");
 #endif
-    return n;
+        return -2;
+    }
+
+    if (FD_ISSET(sockfd, &rfds)) {
+        ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
+        if (n < 0) err_sys("Recv");
+        else if (n == 0) {
+            //TODO
+            printf("Connection closed\n");
+        }
+        recvline[n] = 0;
+#ifdef DEBUG
+        printf("Recv: %s\n", recvline);
+#endif
+        return (int)n;
+    }
+
+    return -1;
 }
 
 void Write(int sockfd, const void *vptr, size_t n) {
