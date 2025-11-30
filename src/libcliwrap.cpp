@@ -51,7 +51,9 @@ int GamePlay::ChooseColor(int c) {
     //get broadcasted room info
     char buf[MAXLINE];
     Recv(sockfd, buf);
-    GetRoomInfo(roomID, myRoom, buf);
+    lst_conn = time(NULL);
+    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
+        return GAME_START;
     if(myRoom.colors[playerID] != c) 
         return -1;
     return 0;
@@ -64,6 +66,7 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
 #endif  
     char buf[MAXLINE];
     Recv(sockfd, buf);
+    lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string tmp;
     int k;
@@ -94,7 +97,7 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
 }
 
 // get room info (specific)
-void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
+int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 #ifdef DEBUG
     printf("Getting room %d info\n", rid);
 #endif
@@ -122,21 +125,38 @@ void GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 #endif
     room.isPrivate = (room.password != "10000");
     room.password = room.isPrivate ? room.password : "";
-    return;
+    if(!ss_empty(ss)) {
+        ss >> tmp;
+        if(tmp == "GAMESTART") {
+            room.inGame = 1;
+            return GAME_START;
+        }
+    }
+    return 0;
 }
 
 // get room info when already in room
 int GamePlay::GetRoomInfo() {
     char buf[MAXLINE];
-    if (Recv(sockfd, buf) == -2) return 0;
-    if(strlen(buf) == 0) return 0;
+    if (Recv(sockfd, buf) == -2) {
+        time_t currtime = time(NULL);
+        if(difftime(currtime, lst_conn) >= 50) {
+            Write(sockfd, "  ", 2);
+#ifdef DEBUG
+            printf("Alive msg\n");
+#endif
+            lst_conn = currtime;
+        }
+        return 0;
+    }
+    if(strlen(buf) == 0) return 0; //conn closed
+    lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string s;
     ss >> s;
     if(s == "GAMESTART") return GAME_START;
     s = buf;
-    GetRoomInfo(roomID, myRoom, s);
-    return 0;
+    return GetRoomInfo(roomID, myRoom, s);
 }
 
 // join room
@@ -153,6 +173,7 @@ int GamePlay::JoinRoom(int rid, std::string Pwd) {
     Join(sockfd, rid, UserName.c_str(), PIN);
     char buf[MAXLINE];
     Recv(sockfd, buf);
+    lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string rmerr;
     ss >> rmerr;
@@ -181,6 +202,7 @@ int GamePlay::LockRoom() {
     //get broadcasted room info
     char buf[MAXLINE];
     Recv(sockfd, buf);
+    lst_conn = time(NULL);
     GetRoomInfo(roomID, myRoom, buf);
     if(myRoom.locked == false) {
         if(myRoom.n_players < 3)
@@ -206,6 +228,7 @@ int GamePlay::MakePrivate(std::string Pwd) {
         // failed
         return PRIVATE_FAIL;
     }
+    lst_conn = time(NULL);
     GetRoomInfo(roomID, myRoom, buf);
     if(Pwd != "10000" && myRoom.password != Pwd) 
         return PRIVATE_FAIL;
@@ -228,6 +251,7 @@ int GamePlay::UnlockRoom() {
     //get broadcasted room info
     char buf[MAXLINE];
     Recv(sockfd, buf);
+    lst_conn = time(NULL);
     GetRoomInfo(roomID, myRoom, buf);
     if(myRoom.locked == true) 
         return -1;
@@ -253,10 +277,6 @@ void GamePlay::SendBid(int amount) {
     Bid(sockfd, playerID, amount, rem_money);
 }
 
-// wait for GAMESTART signal
-// void GamePlay::Wait() {
-//     std::string buf = "";
-//     while(buf != "GAMESTART") {
-//         //
-//     }
-// }
+bool ss_empty(const std::stringstream& ss) { 
+    return(ss.rdbuf()->in_avail() == 0); 
+}

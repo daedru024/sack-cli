@@ -22,6 +22,7 @@ class GamePlay {
     int sockfd, playerID, rem_money, roomID, color;
     std::string servip, UserName;
     std::bitset<10> MASKUc, MASKSt;
+    time_t lst_conn;
 public:
     Room myRoom;
     GamePlay() {}
@@ -57,7 +58,7 @@ public:
     // get room info
     void GetRoomInfo(std::vector<Room>& rooms);
     // get room info (specific)
-    void GetRoomInfo(int rid, Room& room, std::string buf);
+    int GetRoomInfo(int rid, Room& room, std::string buf);
     // get room info when in room, catch GAMESTART signal
     int GetRoomInfo();
     // join room
@@ -81,8 +82,10 @@ public:
     void RecvBid();
     // bid
     void SendBid(int amount);
-    // wait for GAMESTART signal
-    // void Wait();
 };
+
+/**** HELPER FUNCTIONS ****/
+/**************************/
+bool ss_empty(const std::stringstream& ss);
 
 #endif
