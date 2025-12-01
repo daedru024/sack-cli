@@ -69,6 +69,7 @@ int Privt(int sockfd, int PIN) {
     Write(sockfd, buf, strlen(buf));
     return 0;
 }
+
 int Recv(int sockfd, char *recvline) {
     fd_set rfds;
     struct timeval tv;
@@ -85,14 +86,13 @@ int Recv(int sockfd, char *recvline) {
         if (errno == EINTR) return -1; 
         err_sys("Select");
         return -1;
-    } else if (sel == 0) {
-        // timeout
+    }
+    else if (sel == 0) { // timeout
 #ifdef DEBUG
         printf("Timeout\n");
 #endif
         return -2;
     }
-
     if (FD_ISSET(sockfd, &rfds)) {
         ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
         if (n < 0) err_sys("Recv");
