@@ -6,7 +6,8 @@
 extern sf::View uiView;
 extern GamePlay gameData;
 extern bool UI_TEST_MODE;
-
+extern std::vector<Room> rooms;
+extern int currentRoomIndex;
 
 using std::string;
 
@@ -74,8 +75,8 @@ void runHostSettingPage(
     bool isPrivate = room.isPrivate;   // server 狀態
 
     Label pwLabel(&font, "Password (4 digits)",
-                  CENTER_X, PASS_LABEL_Y, 22,
-                  sf::Color::Black, sf::Color::Transparent, 0);
+              CENTER_X, PASS_LABEL_Y, 26,
+              sf::Color::White, sf::Color::Black, 3);
     pwLabel.centerText();
 
     sf::RectangleShape pwBox[PASS_LEN];
@@ -102,6 +103,11 @@ void runHostSettingPage(
         while (window.pollEvent(e))
         {
             if (e.type == sf::Event::Closed) window.close();
+
+            // 視窗尺寸改變 → 更新背景
+            if (e.type == sf::Event::Resized) {
+                updateBackgroundUI();
+            }
 
             // toggle privacy (server 還沒改，只改 UI)
             if (publicBtn.clicked(e, window)) {
@@ -148,6 +154,7 @@ void runHostSettingPage(
 
                     err = gameData.MakePrivate(pwBuf);
                     if (err != SUCCESS) {
+                        // 若是被 server 踢掉導致失敗，之後進 RoomInfo 會 Reconnect
                         errorMsg = "Server refused PIN.";
                         continue;
                     }
@@ -161,9 +168,19 @@ void runHostSettingPage(
                     }
                 }
 
-                // 不更新 room，避免 client 假資料
-                // 完成後直接回 RoomInfoPage，由那邊重新 GetRoomInfo()
-                state = State::RoomInfo;
+                // 將 gameData.myRoom 的最新狀態同步回全域 rooms
+                int rid = gameData.RoomID();
+                if (rid >= 0 && rid < (int)rooms.size()) {
+                    rooms[rid] = gameData.myRoom;
+                    currentRoomIndex = rid;
+                }
+
+                // 設定完隱私後就回到房間 / 或重新選房
+                if (rid == room.id && gameData.PlayerID() == 0) {
+                    state = State::InRoom;
+                } else {
+                    state = State::RoomInfo;
+                }
                 return;
             }
         }

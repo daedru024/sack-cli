@@ -30,7 +30,7 @@ namespace RInfo {
 
     constexpr float TITLE_Y      = 50.f;
 
-    constexpr int PASS_LEN     = 4;
+    constexpr int PASS_LEN       = 4;
     constexpr float PASS_W       = 40.f;
     constexpr float PASS_H       = 50.f;
     constexpr float PASS_GAP     = 12.f;
@@ -58,6 +58,7 @@ static float passBoxX(int idx) {
     float start = PANEL_X + (PANEL_W - total) / 2.f;
     return start + idx * (PASS_W + PASS_GAP);
 }
+
 void runRoomInfoPage(
     sf::RenderWindow& window,
     State& state,
@@ -69,7 +70,8 @@ void runRoomInfoPage(
     sf::Font font;
     loadFontSafe(font);
 
-    // ---- 初始化房間資訊 ----
+    // ---- 重新連線 + 初始化房間資訊 ----
+    gameData.Reconnect();
     gameData.GetRoomInfo(rooms);
     if ((int)rooms.size() < 3) rooms.resize(3);
 
@@ -143,10 +145,11 @@ void runRoomInfoPage(
                    EXIT_W, EXIT_H, true);
 
     Button roomBtn[3] = {
-        Button(&font, "Room 1", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(0), ROOM_BTN_W, ROOM_BTN_H, true),
-        Button(&font, "Room 2", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(1), ROOM_BTN_W, ROOM_BTN_H, true),
-        Button(&font, "Room 3", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(2), ROOM_BTN_W, ROOM_BTN_H, true)
+        Button(&font, "", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(0), ROOM_BTN_W, ROOM_BTN_H, true),
+        Button(&font, "", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(1), ROOM_BTN_W, ROOM_BTN_H, true),
+        Button(&font, "", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(2), ROOM_BTN_W, ROOM_BTN_H, true)
     };
+
 
     sf::RectangleShape rightPanel({PANEL_W, PANEL_H});
     rightPanel.setPosition(PANEL_X, PANEL_Y);
@@ -179,7 +182,8 @@ void runRoomInfoPage(
         passBox[i].setOutlineColor(sf::Color::Black);
         passBox[i].setOutlineThickness(3);
     }
-        // ============================================================
+
+    // ============================================================
     // Main loop
     // ============================================================
     while (window.isOpen() && state == State::RoomInfo)
@@ -189,6 +193,11 @@ void runRoomInfoPage(
         {
             if (e.type == sf::Event::Closed)
                 window.close();
+
+            // 視窗大小改變 → 更新背景
+            if (e.type == sf::Event::Resized) {
+                updateBackgroundUI();
+            }
 
             if (exitBtn.clicked(e, window)) {
                 reason = EndReason::UserExit;
@@ -285,7 +294,7 @@ void runRoomInfoPage(
         window.draw(timerTx);
 
         // ============================================================
-        // 左側房間列表
+        // 左側房間列表（修正文字重疊）
         // ============================================================
         for (int i = 0; i < 3; i++)
         {
@@ -305,24 +314,28 @@ void runRoomInfoPage(
             b.shape.setFillColor(base);
             b.draw(window);
 
-            float cx = b.shape.getPosition().x;
-            float cy = b.shape.getPosition().y;
-            float left = cx - b.shape.getSize().x/2.f + 12;
+            float cx    = b.shape.getPosition().x;
+            float cy    = b.shape.getPosition().y;
+            float halfH = b.shape.getSize().y / 2.f;
+            float top   = cy - halfH;
+            float bottom= cy + halfH;
 
-            // Host
+            float left  = cx - b.shape.getSize().x/2.f + 12;
+
+            // Host（上排）
             sf::Text host = mkCenterText(
                 font, "Host: " + (r.hostName().empty()? "-" : r.hostName()),
                 18, sf::Color::Black);
             host.setOrigin(0, host.getOrigin().y);
-            host.setPosition(left, cy - 28);
+            host.setPosition(left, top + 18.f);
             window.draw(host);
 
-            // Room Name
+            // Room Name（中間）
             sf::Text rn = mkCenterText(font, r.name, 26, sf::Color::Black);
-            rn.setPosition(cx, cy - 3);
+            rn.setPosition(cx, cy);
             window.draw(rn);
 
-            // Status
+            // Status（下排）
             std::string st;
             if (r.isPlaying()) st = "PLAYING";
             else if (r.isFull()) st = "FULL";
@@ -334,7 +347,7 @@ void runRoomInfoPage(
 
             sf::Text stTx = mkCenterText(font, st, 18, sf::Color::Black);
             stTx.setOrigin(0, stTx.getOrigin().y);
-            stTx.setPosition(left, cy + 10);
+            stTx.setPosition(left, bottom - 20.f);
             window.draw(stTx);
 
             // PRIVATE tag
@@ -345,11 +358,11 @@ void runRoomInfoPage(
                 tag.setOutlineThickness(2);
 
                 float right = cx + b.shape.getSize().x/2.f - 84;
-                tag.setPosition(right, cy - 35);
+                tag.setPosition(right, top + 8.f);
                 window.draw(tag);
 
                 sf::Text t = mkCenterText(font, "PRIVATE", 14, sf::Color(180,30,30));
-                t.setPosition(right + 39, cy - 24);
+                t.setPosition(right + 39, top + 19.f);
                 window.draw(t);
             }
         }
@@ -412,5 +425,3 @@ void runRoomInfoPage(
         window.display();
     }
 }
-
-

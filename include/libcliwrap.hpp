@@ -16,15 +16,17 @@
 #define NOT_ENOUGH_PLAYERS 6
 #define WRONG_DIGIT 7
 #define PRIVATE_FAIL 8
+#define GAME_START 4096
 
 class GamePlay {
     int sockfd, playerID, rem_money, roomID, color;
     std::string servip, UserName;
     std::bitset<10> MASKUc, MASKSt;
+    time_t lst_conn;
 public:
     Room myRoom;
     GamePlay() {}
-    GamePlay(const char* servip, std::string s) : servip(servip), sockfd(Connect(servip)), UserName(s) {}
+    GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
     
     /**** VARIABLES ****/
     /*******************/
@@ -38,11 +40,14 @@ public:
     /**** CONNECTION ****/
     /********************/
     // connect to servip
-    int Connect(const char* servip) { return Conn(servip);}
-    // is connected (placeholder, will be improved)
-    bool isConnected() { return sockfd >= 0; }
+    int Connect();
     // end connection
-    int EndConn() { return Close(sockfd);};
+    int EndConn();
+    // is connected (placeholder, will be improved)
+    bool isConnected();
+    // Connect/reconnect
+    int Reconnect();
+
 
     /**** ROOMS ****/
     /***************/
@@ -53,7 +58,9 @@ public:
     // get room info
     void GetRoomInfo(std::vector<Room>& rooms);
     // get room info (specific)
-    void GetRoomInfo(int rid, Room& room, std::string buf);
+    int GetRoomInfo(int rid, Room& room, std::string buf);
+    // get room info when in room, catch GAMESTART signal
+    int GetRoomInfo();
     // join room
     int JoinRoom(int rid);
     // join room (private)
@@ -75,8 +82,10 @@ public:
     void RecvBid();
     // bid
     void SendBid(int amount);
-    // TODO
-    void Wait();
 };
+
+/**** HELPER FUNCTIONS ****/
+/**************************/
+bool ss_empty(const std::stringstream& ss);
 
 #endif

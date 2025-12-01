@@ -1,5 +1,7 @@
 #include "libcli.h"
 
+#define DEBUG
+
 int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
     char buf[MAXLINE];
     sprintf(buf, "17 %d %d %d", PlayerID, amount, rem_money);
@@ -8,9 +10,9 @@ int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
 }
 
 int Close(int sockfd) {
-    if(close(sockfd) == -1) {
-        err_sys("close error");
-        return -1;
+    if(shutdown(sockfd, SHUT_WR) == -1) {
+        if(errno == EBADF) return 0;
+        else err_sys("close error");
     }
     return 0;
 }
@@ -50,7 +52,7 @@ int Join(int sockfd, int RoomID, const char* username, int PIN) {
 }
 
 int Lock(int sockfd) {
-    Write(sockfd, "3", 1);
+    Write(sockfd, "3 ", 1);
     return 0;
 }
 
@@ -63,20 +65,49 @@ int PlayCard(int sockfd, int PlayerID, int Card, int MaskUc) {
 
 int Privt(int sockfd, int PIN) {
     char buf[MAXLINE];
-    sprintf(buf, "5 %d", PIN);
+    sprintf(buf, "5 %04d", PIN);
     Write(sockfd, buf, strlen(buf));
     return 0;
 }
 
-int Recv(int sockfd, char* recvline) {
-    int n;
-    n = read(sockfd, recvline, MAXLINE);
-    if(n == -1) {
-        err_sys("read error");
+int Recv(int sockfd, char *recvline) {
+    fd_set rfds;
+    struct timeval tv;
+    int sel;
+
+    FD_ZERO(&rfds);
+    FD_SET(sockfd, &rfds);
+
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+
+    sel = select(sockfd + 1, &rfds, NULL, NULL, &tv);
+    if (sel < 0) {
+        if (errno == EINTR) return -1; 
+        err_sys("Select");
         return -1;
     }
-    recvline[n] = 0;
-    return n;
+    else if (sel == 0) { // timeout
+#ifdef DEBUG
+        printf("Timeout\n");
+#endif
+        return -2;
+    }
+    if (FD_ISSET(sockfd, &rfds)) {
+        ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
+        if (n < 0) err_sys("Recv");
+        else if (n == 0) {
+            //TODO
+            printf("Connection closed\n");
+        }
+        recvline[n] = 0;
+#ifdef DEBUG
+        printf("Recv: %s\n", recvline);
+#endif
+        return (int)n;
+    }
+
+    return -1;
 }
 
 void Write(int sockfd, const void *vptr, size_t n) {
@@ -95,6 +126,9 @@ void Write(int sockfd, const void *vptr, size_t n) {
         rem -= nw;
         ptr += nw;
     }
+#ifdef DEBUG
+    printf("Sent: %s\n", (char*)vptr);
+#endif
     return;
 }
 

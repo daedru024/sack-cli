@@ -11,7 +11,7 @@ extern int currentRoomIndex;
 extern sf::View uiView;
 extern void drawBackground(sf::RenderWindow&);
 extern bool UI_TEST_MODE;
-
+extern GamePlay gameData;
 
 // ============================================================
 // UI 常數
@@ -33,9 +33,9 @@ namespace LobbyUI {
     constexpr float LIST_HEADER_H  = 40.f;
 
     constexpr float PLAYER_NAME_X_OFFSET = 30.f;
-    constexpr float READY_STATE_X_OFFSET = 260.f;   // panel 內偏移（修正過）
+    constexpr float READY_STATE_X_OFFSET = 260.f;   // panel 內偏移
 
-    // 右側面板 (與 room_info_page 一致)
+    // 右側面板
     constexpr float PANEL_X       = 500.f;
     constexpr float PANEL_W       = 240.f;
     constexpr float PANEL_CENTER  = PANEL_X + PANEL_W / 2.f;
@@ -69,9 +69,6 @@ namespace LobbyUI {
     constexpr float KICK_TIME     = 30.f;
 }
 
-// ------------------------------------------------------------
-// 建立中心文字
-// ------------------------------------------------------------
 static sf::Text mkCenter(
     const sf::Font& font, const std::string& str,
     int size, const sf::Color& col)
@@ -83,9 +80,6 @@ static sf::Text mkCenter(
     return t;
 }
 
-// ------------------------------------------------------------
-// 建立左對齊文字
-// ------------------------------------------------------------
 static sf::Text mkLeft(
     const sf::Font& font, const std::string& str,
     int size, const sf::Color& col)
@@ -97,9 +91,6 @@ static sf::Text mkLeft(
     return t;
 }
 
-// ------------------------------------------------------------
-// 列表列中心
-// ------------------------------------------------------------
 static float getRowY(int i) {
     using namespace LobbyUI;
     return LIST_HEADER_H + LIST_V_PADDING + i * ROW_H + ROW_H / 2.f;
@@ -125,7 +116,7 @@ void runInRoomPage(
         state = State::RoomInfo;
         return;
     }
-    Room& room = rooms[roomIdx];
+    Room& room = gameData.myRoom;
 
     if (room.n_players == 0) {
         room.resetIfEmpty();
@@ -145,7 +136,6 @@ void runInRoomPage(
         return;
     }
 
-    // Ready + 顏色狀態
     std::vector<bool> isReady(n, false);
     std::vector<int> colorIndex(room.colors);
 
@@ -154,7 +144,6 @@ void runInRoomPage(
 
     bool isHost = (players[0] == username);
 
-    // ========================= UI ============================
     std::string titleStr = room.name +
         " (" + std::to_string(n) + "/5 Players)";
     if (room.isLocked()) titleStr += " - LOCKED";
@@ -174,7 +163,6 @@ void runInRoomPage(
     Button exitBtn(&font, "Exit",
                    EXIT_X, EXIT_Y, EXIT_W, EXIT_H, true);
 
-    // 顏色選擇器
     ColorSelector selector(0, 0);
     selector.setLimit(5);
     selector.computePositions(PANEL_CENTER, COLOR_PICKER_Y);
@@ -220,9 +208,13 @@ void runInRoomPage(
             if (e.type == sf::Event::Closed)
                 window.close();
 
+            if (e.type == sf::Event::Resized) {
+                updateBackgroundUI();
+            }
+
             // ===== Exit =====
             if (exitBtn.clicked(e, window)) {
-                room.resetIfEmpty();
+                isReady[myIndex] = false;
                 state = State::RoomInfo;
                 return;
             }
@@ -235,7 +227,10 @@ void runInRoomPage(
                 } else {
                     isReady[myIndex] = !isReady[myIndex];
 
-                    if (isReady[myIndex]) counting = false;
+                    if (isReady[myIndex]) {
+                        counting = false;
+                        gameData.ChooseColor(colorIndex[myIndex]);
+                    }
                     else {
                         counting = true;
                         idleTimer.restart();
@@ -256,7 +251,6 @@ void runInRoomPage(
 
                 if (!room.locked)
                 {
-                    // 想 lock
                     if (curPlayers < 3)
                     {
                         std::cout << "Need at least 3 players.\n";
@@ -264,25 +258,21 @@ void runInRoomPage(
                     else
                     {
                         int err = gameData.LockRoom();
-                        if (err == SUCCESS)
-                        {
-                            // server 廣播會更新，UI 不自行設值
+                        if (err == SUCCESS) {
+                            // server 廣播會更新
                         }
-                        else if (err == NOT_ENOUGH_PLAYERS)
-                        {
+                        else if (err == NOT_ENOUGH_PLAYERS) {
                             std::cout << "Server: not enough players.\n";
                         }
                     }
                 }
                 else
                 {
-                    // 想 unlock
                     if (!room.inGame)
                     {
                         int err = gameData.UnlockRoom();
-                        if (err == SUCCESS)
-                        {
-                            // server 會廣播 unlock 狀態
+                        if (err == SUCCESS) {
+                            // server 會廣播 unlock
                         }
                     }
                 }
@@ -296,14 +286,14 @@ void runInRoomPage(
                     if (!rdy) allReady = false;
 
                 if (room.isLocked() && allReady) {
-                    room.inGame = true;
+                    room.inGame = 1;
                     state = State::GameStart;
                     return;
                 }
             }
         }
 
-        // ===== Auto-kick =====
+        // ===== Auto-kick（client 端）=====
         if (counting && !isReady[myIndex])
         {
             float elapsed = idleTimer.getElapsedTime().asSeconds();
@@ -311,6 +301,14 @@ void runInRoomPage(
             {
                 room.resetIfEmpty();
                 state = State::RoomInfo;
+                return;
+            }
+        }
+
+        // Ready 之後，偶爾問一下 server 有沒有 GAMESTART
+        if (isReady[myIndex]) {
+            if (gameData.GetRoomInfo() == GAME_START) {
+                state = State::GameStart;
                 return;
             }
         }
@@ -323,14 +321,12 @@ void runInRoomPage(
         title.draw(window);
         window.draw(listPanel);
 
-        // 列表標題
         {
             sf::Text header = mkCenter(font, "Player List", 24, sf::Color::Black);
             header.setPosition(LIST_X + LIST_W / 2.f, LIST_Y + LIST_HEADER_H / 2.f);
             window.draw(header);
         }
 
-        // 玩家列表
         for (int i = 0; i < n; i++)
         {
             float cy = LIST_Y + getRowY(i);
@@ -361,7 +357,6 @@ void runInRoomPage(
             window.draw(r);
         }
 
-        // 顏色選擇
         colorLabel.draw(window);
         selector.preview.setFillColor(
             colorIndex[myIndex] >= 0 ?
@@ -371,7 +366,6 @@ void runInRoomPage(
         window.draw(selector.preview);
         selector.draw(window, isColorTaken);
 
-        // Buttons
         exitBtn.update(window);
         exitBtn.draw(window);
 
@@ -388,7 +382,6 @@ void runInRoomPage(
         );
         readyStateLabel.draw(window);
 
-        // Host UI
         if (isHost)
         {
             int curPlayers = room.n_players;
@@ -418,7 +411,6 @@ void runInRoomPage(
             startBtn.draw(window);
         }
 
-        // Auto-kick 提示
         if (!isReady[myIndex] && counting)
         {
             float remain = KICK_TIME - idleTimer.getElapsedTime().asSeconds();
