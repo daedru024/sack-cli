@@ -52,13 +52,13 @@ int Join(int sockfd, int RoomID, const char* username, int PIN) {
 }
 
 int Lock(int sockfd) {
-    Write(sockfd, "3 ", 1);
+    Write(sockfd, "3 ", strlen("3 "));
     return 0;
 }
 
 int PlayCard(int sockfd, int PlayerID, int Card, int MaskUc) {
     char buf[MAXLINE];
-    sprintf(buf, "13 %d %d %d", PlayerID, Card, MaskUc);
+    sprintf(buf, "13 %d %d %d ", PlayerID, Card, MaskUc);
     Write(sockfd, buf, strlen(buf));
     return 0;
 }

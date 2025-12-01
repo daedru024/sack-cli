@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <bitset>
+#include <random>
 
 #define SUCCESS 0
 #define ROOM_FULL 1
@@ -25,7 +26,7 @@ class GamePlay {
     time_t lst_conn;
 public:
     Room myRoom;
-    GamePlay() {}
+    GamePlay() {std::srand(time(NULL));}
     GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
     
     /**** VARIABLES ****/
@@ -77,11 +78,15 @@ public:
     /**** GAME MECHANISM ****/
     /************************/
     // play card
-    void Play(int c);
+    bool Play(int c);
     // receive bid info
     void RecvBid();
+    // receive play card info
+    void RecvPlay();
+    /*** ^ I need to know how you'd update data during gameplay ***/
     // bid
     void SendBid(int amount);
+    //TODO: get score
 };
 
 /**** HELPER FUNCTIONS ****/

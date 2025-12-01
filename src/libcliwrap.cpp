@@ -129,6 +129,10 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
         ss >> tmp;
         if(tmp == "GAMESTART") {
             room.inGame = 1;
+            int r = std::rand() % 10;
+            std::stringstream sst;
+            sst << "19 " << r;
+            Write(sockfd, sst.str().c_str(), sst.str().length());
             return GAME_START;
         }
     }
@@ -154,7 +158,14 @@ int GamePlay::GetRoomInfo() {
     std::stringstream ss(buf);
     std::string s;
     ss >> s;
-    if(s == "GAMESTART") return GAME_START;
+    if(s == "GAMESTART") {
+        myRoom.inGame = 1;
+        int r = std::rand() % 10;
+        std::stringstream sst;
+        sst << "19 " << r;
+        Write(sockfd, sst.str().c_str(), sst.str().length());
+        return GAME_START;
+    }
     s = buf;
     return GetRoomInfo(roomID, myRoom, s);
 }
@@ -262,13 +273,24 @@ int GamePlay::UnlockRoom() {
 /************************/
 
 // play card
-void GamePlay::Play(int c) {
+bool GamePlay::Play(int c) {
+    if(MASKUc[c]) return 0;
+    int tmp = (int)MASKUc.to_ulong();
+    if(PlayCard(sockfd, playerID, c, tmp) == -1) return 0;
+    MASKUc[c] = 1;
+    return 1;
+}
+
+void GamePlay::RecvPlay() {
     //TODO
+    //c {PlayerID} {code}
 }
 
 // receive bid info
 void GamePlay::RecvBid() {
     //TODO
+    //b {PlayerID} {amount} {code}
+    //BID {NextPlayerID}
 }
 
 // bid
