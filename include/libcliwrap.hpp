@@ -17,6 +17,7 @@
 #define NOT_ENOUGH_PLAYERS 6
 #define WRONG_DIGIT 7
 #define PRIVATE_FAIL 8
+#define TOO_MANY_PRIVATE 9
 #define GAME_START 4096
 
 class GamePlay {
@@ -75,6 +76,10 @@ public:
     // send unlock message
     int UnlockRoom();
 
+    /**** GAME Request ****/
+    /************************/
+    int StartRequest();
+
     /**** GAME MECHANISM ****/
     /************************/
     // play card
@@ -92,5 +97,6 @@ public:
 /**** HELPER FUNCTIONS ****/
 /**************************/
 bool ss_empty(const std::stringstream& ss);
+
 
 #endif

@@ -45,7 +45,7 @@ namespace HostUI {
 void runHostSettingPage(
     sf::RenderWindow& window,
     State& state,
-    EndReason&,
+    EndReason& reason,
     Room& room,
     const std::string& username)
 {
@@ -72,11 +72,11 @@ void runHostSettingPage(
                       CENTER_X + BTN_W/2.f + BTN_GAP/2.f, BTN_Y,
                       BTN_W, BTN_H, true);
 
-    bool isPrivate = room.isPrivate;   // server 狀態
+    bool isPrivate = room.isPrivate;
 
     Label pwLabel(&font, "Password (4 digits)",
-              CENTER_X, PASS_LABEL_Y, 26,
-              sf::Color::White, sf::Color::Black, 3);
+                  CENTER_X, PASS_LABEL_Y, 26,
+                  sf::Color::White, sf::Color::Black, 3);
     pwLabel.centerText();
 
     sf::RectangleShape pwBox[PASS_LEN];
@@ -95,37 +95,68 @@ void runHostSettingPage(
                       CONFIRM_W, CONFIRM_H, true);
 
     // ======================================================
+    // Auto-kick timer + server-disconnect check
+    // ======================================================
+    sf::Clock idleClock;   // 計算 idle 時間（30 秒）
+    idleClock.restart();
+
+    // ======================================================
     // LOOP
     // ======================================================
     while (window.isOpen() && state == State::HostSetting)
     {
+        // --------------------------------------------------
+        // ① 偵測 server 端是否已 pop 我 → Recv() == 0
+        // --------------------------------------------------
+        char tmpbuf[MAXLINE];
+        int r = Recv(gameData.Sockfd(), tmpbuf);
+        if (r == 0) {
+            // server 已經斷線
+            reason = EndReason::Timeout;
+            state = State::RoomInfo;
+            return;
+        }
+
+        // --------------------------------------------------
+        // ② Idle timeout → auto-kick
+        // --------------------------------------------------
+        if (idleClock.getElapsedTime().asSeconds() > 30.f) {
+            reason = EndReason::Timeout;
+            state = State::RoomInfo;
+            return;
+        }
+
+        // --------------------------------------------------
+        // 處理事件
+        // --------------------------------------------------
         sf::Event e;
         while (window.pollEvent(e))
         {
-            if (e.type == sf::Event::Closed) window.close();
+            if (e.type == sf::Event::Closed)
+                window.close();
 
-            // 視窗尺寸改變 → 更新背景
-            if (e.type == sf::Event::Resized) {
+            if (e.type == sf::Event::Resized)
                 updateBackgroundUI();
-            }
 
-            // toggle privacy (server 還沒改，只改 UI)
             if (publicBtn.clicked(e, window)) {
                 isPrivate = false;
                 pwBuf.clear();
                 errorMsg.clear();
+                idleClock.restart();
             }
             if (privateBtn.clicked(e, window)) {
                 isPrivate = true;
                 errorMsg.clear();
+                idleClock.restart();
             }
 
-            // password input
+            // password entry
             if (isPrivate && e.type == sf::Event::TextEntered)
             {
-                if (e.text.unicode == 8) { // backspace
-                    if (!pwBuf.empty()) pwBuf.pop_back();
-                }
+                idleClock.restart(); // reset timer on input
+
+                if (e.text.unicode == 8 && !pwBuf.empty())
+                    pwBuf.pop_back();
                 else if (e.text.unicode >= '0' && e.text.unicode <= '9')
                 {
                     if ((int)pwBuf.size() < PASS_LEN)
@@ -135,29 +166,36 @@ void runHostSettingPage(
                 if (!errorMsg.empty()) errorMsg.clear();
             }
 
-            // Confirm
             bool wantConfirm =
                 confirmBtn.clicked(e, window) ||
                 (e.type == sf::Event::KeyPressed && e.key.code == sf::Keyboard::Enter);
 
             if (wantConfirm)
             {
+                idleClock.restart();
+
                 int err = 0;
 
                 if (isPrivate)
                 {
-                    if (pwBuf.size() != PASS_LEN)
-                    {
+                    if (pwBuf.size() != PASS_LEN) {
                         errorMsg = "PIN must be 4 digits.";
                         continue;
                     }
 
                     err = gameData.MakePrivate(pwBuf);
-                    if (err != SUCCESS) {
-                        // 若是被 server 踢掉導致失敗，之後進 RoomInfo 會 Reconnect
+
+                    if (err == TOO_MANY_PRIVATE) {
+                        errorMsg = "Only two private rooms allowed on server.";
+                        continue;
+                    }
+
+                    else if (err != SUCCESS) {
                         errorMsg = "Server refused PIN.";
                         continue;
                     }
+                    
+
                 }
                 else
                 {
@@ -168,29 +206,29 @@ void runHostSettingPage(
                     }
                 }
 
-                // 將 gameData.myRoom 的最新狀態同步回全域 rooms
+                // 正常切頁
                 int rid = gameData.RoomID();
                 if (rid >= 0 && rid < (int)rooms.size()) {
                     rooms[rid] = gameData.myRoom;
                     currentRoomIndex = rid;
                 }
 
-                // 設定完隱私後就回到房間 / 或重新選房
-                if (rid == room.id && gameData.PlayerID() == 0) {
+                if (rid == room.id && gameData.PlayerID() == 0)
                     state = State::InRoom;
-                } else {
+                else
                     state = State::RoomInfo;
-                }
+
                 return;
             }
         }
 
-        // ===== UI 更新 =====
+        // --------------------------------------------------
+        // Draw
+        // --------------------------------------------------
         publicBtn.update(window);
         privateBtn.update(window);
         confirmBtn.update(window);
 
-        // ===== Draw =====
         window.setView(uiView);
         window.clear();
         drawBackground(window);
@@ -198,20 +236,19 @@ void runHostSettingPage(
         title.draw(window);
         hostLabel.draw(window);
 
+        // button colors
         publicBtn.shape.setFillColor(
-            !isPrivate ? sf::Color(180,230,180) : sf::Color(210,210,210)
-        );
+            !isPrivate ? sf::Color(180,230,180) : sf::Color(210,210,210));
         privateBtn.shape.setFillColor(
-            isPrivate ? sf::Color(180,230,180) : sf::Color(210,210,210)
-        );
+            isPrivate ? sf::Color(180,230,180) : sf::Color(210,210,210));
 
         publicBtn.draw(window);
         privateBtn.draw(window);
 
+        // password UI
         if (isPrivate)
         {
             pwLabel.draw(window);
-
             float totalW = PASS_LEN * PASS_W + (PASS_LEN - 1) * PASS_GAP;
             float startX = CENTER_X - totalW/2.f;
 
@@ -223,17 +260,13 @@ void runHostSettingPage(
                 pwBox[i].setOutlineColor(focus ? sf::Color(0,150,255)
                                                : sf::Color::Black);
                 pwBox[i].setOutlineThickness(focus ? 4.f : 3.f);
-
                 window.draw(pwBox[i]);
 
                 if (i < (int)pwBuf.size())
                 {
-                    sf::Text d = mkCenterText(font, string(1, pwBuf[i]),
-                                              32, sf::Color::Black);
-                    d.setPosition(
-                        pwBox[i].getPosition().x + PASS_W/2.f,
-                        PASS_BOX_Y + PASS_H/2.f
-                    );
+                    sf::Text d = mkCenterText(font, string(1, pwBuf[i]), 32, sf::Color::Black);
+                    d.setPosition(pwBox[i].getPosition().x + PASS_W/2.f,
+                                  PASS_BOX_Y + PASS_H/2.f);
                     window.draw(d);
                 }
             }
@@ -250,3 +283,4 @@ void runHostSettingPage(
         window.display();
     }
 }
+

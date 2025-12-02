@@ -30,7 +30,7 @@ namespace RInfo {
 
     constexpr float TITLE_Y      = 50.f;
 
-    constexpr int PASS_LEN       = 4;
+    constexpr int  PASS_LEN      = 4;
     constexpr float PASS_W       = 40.f;
     constexpr float PASS_H       = 50.f;
     constexpr float PASS_GAP     = 12.f;
@@ -70,7 +70,7 @@ void runRoomInfoPage(
     sf::Font font;
     loadFontSafe(font);
 
-    // ---- 重新連線 + 初始化房間資訊 ----
+    // ---- 初始連線 + 拿房間資訊（用原本 blocking 版，確保一開始有資料）----
     gameData.Reconnect();
     gameData.GetRoomInfo(rooms);
     if ((int)rooms.size() < 3) rooms.resize(3);
@@ -85,7 +85,10 @@ void runRoomInfoPage(
 
     auto canClickRoom = [&](int i) {
         Room& r = rooms[i];
-        return (!r.isPlaying() && !r.isFull());
+        if (r.isPlaying()) return false;
+        if (r.isFull())    return false;
+        if (r.isLocked())  return false;
+        return true;
     };
 
     auto tryJoin = [&](int idx) -> bool {
@@ -132,7 +135,7 @@ void runRoomInfoPage(
         return false;
     };
 
-    // ---- UI Components ----
+    // ===== UI Components =====
     Label title(&font, "Select a Room",
                 LIST_LEFT_X + ROOM_BTN_W/2.f,
                 TITLE_Y, 50,
@@ -149,7 +152,6 @@ void runRoomInfoPage(
         Button(&font, "", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(1), ROOM_BTN_W, ROOM_BTN_H, true),
         Button(&font, "", LIST_LEFT_X + ROOM_BTN_W/2.f, btnCenterY(2), ROOM_BTN_W, ROOM_BTN_H, true)
     };
-
 
     sf::RectangleShape rightPanel({PANEL_W, PANEL_H});
     rightPanel.setPosition(PANEL_X, PANEL_Y);
@@ -183,9 +185,9 @@ void runRoomInfoPage(
         passBox[i].setOutlineThickness(3);
     }
 
-    // ============================================================
-    // Main loop
-    // ============================================================
+    // =================================================================
+    //                        MAIN LOOP
+    // =================================================================
     while (window.isOpen() && state == State::RoomInfo)
     {
         sf::Event e;
@@ -194,10 +196,8 @@ void runRoomInfoPage(
             if (e.type == sf::Event::Closed)
                 window.close();
 
-            // 視窗大小改變 → 更新背景
-            if (e.type == sf::Event::Resized) {
+            if (e.type == sf::Event::Resized)
                 updateBackgroundUI();
-            }
 
             if (exitBtn.clicked(e, window)) {
                 reason = EndReason::UserExit;
@@ -229,14 +229,12 @@ void runRoomInfoPage(
                         if ((int)keyInput.size() < PASS_LEN)
                             keyInput.push_back((char)e.text.unicode);
                     }
-                    else if (e.text.unicode == 8) // backspace
-                    {
+                    else if (e.text.unicode == 8) { // backspace
                         if (!keyInput.empty())
                             keyInput.pop_back();
                     }
                 }
 
-                // Enter to Join
                 if (e.type == sf::Event::KeyPressed &&
                     e.key.code == sf::Keyboard::Enter &&
                     (int)keyInput.size() == PASS_LEN)
@@ -252,7 +250,7 @@ void runRoomInfoPage(
                 }
             }
 
-            // ---- JOIN button ----
+            // ---- JOIN BUTTON ----
             if (selected != -1 && joinBtn.clicked(e, window)) {
                 if (tryJoin(selected)) return;
             }
@@ -266,7 +264,7 @@ void runRoomInfoPage(
             return;
         }
 
-        // ---- 更新 Buttons ----
+        // ---- 更新按鈕 ----
         exitBtn.update(window);
         bool joinEnabled = (selected != -1) &&
                            (!needsKey || (int)keyInput.size() == PASS_LEN);
@@ -274,17 +272,16 @@ void runRoomInfoPage(
         if (joinEnabled) joinBtn.update(window);
 
         // ============================================================
-        // Draw
+        // Draw UI
         // ============================================================
         window.setView(uiView);
         window.clear();
         drawBackground(window);
 
-        // Title
         title.draw(window);
         exitBtn.draw(window);
 
-        // Countdown timer
+        // ---- Timer ----
         std::ostringstream oss;
         oss << "Time left: " << (int)remain << "s";
         sf::Text timerTx = mkCenterText(font, oss.str(), 24, sf::Color::White);
@@ -293,9 +290,7 @@ void runRoomInfoPage(
         timerTx.setPosition(LIST_LEFT_X + ROOM_BTN_W / 2.f, TIMER_Y);
         window.draw(timerTx);
 
-        // ============================================================
-        // 左側房間列表（修正文字重疊）
-        // ============================================================
+        // ---- 房間清單 ----
         for (int i = 0; i < 3; i++)
         {
             Room& r = rooms[i];
@@ -304,9 +299,13 @@ void runRoomInfoPage(
             bool clickable = canClickRoom(i);
 
             sf::Color base = sf::Color(210,230,250);
-            if (!clickable)
-                base = r.isPlaying()? sf::Color(200,150,150,200)
+
+            if (r.isLocked() && !r.isPlaying())
+                base = sf::Color(180,180,180,200);           // Locked → 灰色、不能點
+            else if (!clickable)
+                base = r.isPlaying() ? sf::Color(200,150,150,200)
                                      : sf::Color(150,150,150,200);
+
             if (selected == i)
                 base = sf::Color(255,240,140);
 
@@ -314,33 +313,32 @@ void runRoomInfoPage(
             b.shape.setFillColor(base);
             b.draw(window);
 
-            float cx    = b.shape.getPosition().x;
-            float cy    = b.shape.getPosition().y;
-            float halfH = b.shape.getSize().y / 2.f;
-            float top   = cy - halfH;
-            float bottom= cy + halfH;
+            float cx = b.shape.getPosition().x;
+            float cy = b.shape.getPosition().y;
 
-            float left  = cx - b.shape.getSize().x/2.f + 12;
+            float top    = cy - b.shape.getSize().y/2.f;
+            float bottom = cy + b.shape.getSize().y/2.f;
+            float left   = cx - b.shape.getSize().x/2.f + 12;
 
-            // Host（上排）
-            sf::Text host = mkCenterText(
-                font, "Host: " + (r.hostName().empty()? "-" : r.hostName()),
+            // 主人（上排）
+            sf::Text host = mkCenterText(font,
+                "Host: " + (r.hostName().empty()? "-" : r.hostName()),
                 18, sf::Color::Black);
             host.setOrigin(0, host.getOrigin().y);
             host.setPosition(left, top + 18.f);
             window.draw(host);
 
-            // Room Name（中間）
+            // 房間名
             sf::Text rn = mkCenterText(font, r.name, 26, sf::Color::Black);
             rn.setPosition(cx, cy);
             window.draw(rn);
 
-            // Status（下排）
+            // 狀態文字
             std::string st;
-            if (r.isPlaying()) st = "PLAYING";
-            else if (r.isFull()) st = "FULL";
-            else if (r.playerNames.empty()) st = "Empty room";
-            else st = std::to_string(r.n_players) + " players";
+            if (r.isPlaying())         st = "PLAYING";
+            else if (r.isFull())       st = "FULL";
+            else if (r.n_players == 0) st = "Empty room";
+            else                       st = std::to_string(r.n_players) + " players";
 
             if (r.isLocked() && !r.isPlaying() && !r.isFull())
                 st += " (Locked)";
@@ -351,7 +349,8 @@ void runRoomInfoPage(
             window.draw(stTx);
 
             // PRIVATE tag
-            if (r.isPrivate) {
+            if (r.isPrivate)
+            {
                 sf::RectangleShape tag({78,22});
                 tag.setFillColor(sf::Color(255,200,200));
                 tag.setOutlineColor(sf::Color(180,30,30));
@@ -361,26 +360,27 @@ void runRoomInfoPage(
                 tag.setPosition(right, top + 8.f);
                 window.draw(tag);
 
-                sf::Text t = mkCenterText(font, "PRIVATE", 14, sf::Color(180,30,30));
+                sf::Text t = mkCenterText(font, "PRIVATE", 14,
+                                          sf::Color(180,30,30));
                 t.setPosition(right + 39, top + 19.f);
                 window.draw(t);
             }
         }
 
-        // ============================================================
-        // 右側面板
-        // ============================================================
+        // ---- 右側面板 ----
         window.draw(rightPanel);
 
-        if (selected == -1) {
+        if (selected == -1)
+        {
             sf::Text hint = mkCenterText(
                 font, "Click a room on the left.", 20,
                 sf::Color(100,100,100));
-            hint.setPosition(PANEL_X + PANEL_W / 2.f,
-                             PANEL_Y + PANEL_H / 2.f);
+            hint.setPosition(PANEL_X + PANEL_W/2.f,
+                             PANEL_Y + PANEL_H/2.f);
             window.draw(hint);
         }
-        else {
+        else
+        {
             selectedLabel.draw(window);
             joinBtn.draw(window);
 
