@@ -16,9 +16,22 @@ int GamePlay::EndConn() {
     return n;
 }
 
-// is connected (placeholder, will be improved)
+// is connected
 bool GamePlay::isConnected() { 
-    return sockfd >= 0; 
+    if(sockfd < 0) return 0;
+    fd_set write_fds;
+    struct timeval tv;
+
+    FD_ZERO(&write_fds);
+    FD_SET(sockfd, &write_fds);
+    tv.tv_sec = 0;
+    tv.tv_usec = 150000;
+    int n;
+
+    if((n = select(sockfd + 1, NULL, &write_fds, NULL, &tv)) < 0)
+        err_sys("Select");
+    
+    return n > 0;
 }
 
 // Connect/reconnect
@@ -61,7 +74,6 @@ int GamePlay::ChooseColor(int c) {
 
 
 // get room info
-
 void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
 #ifdef DEBUG
     printf("Getting room info\n");
@@ -94,17 +106,11 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
             if(i != k) err_quit("GetRoomInfo: wrong roomID (%d %d)",i,k);
             ss >> rooms[i].n_players >> rooms[i].inGame;
             rooms[i].locked = (rooms[i].inGame == 0);
-            // // modified
-            // if (rooms[i].n_players >= 3 && rooms[i].inGame == 0)
-            //     rooms[i].locked = true;
-            // else
-            //     rooms[i].locked = false;
         }
     }
 }
 
 // get room info (specific)
-
 int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 #ifdef DEBUG
     printf("Getting room %d info\n", rid);
@@ -115,7 +121,7 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
     //broadcasted room info 
     //in {RoomID} {n_Players} {username[:] color[:]} {locked} {PIN} {playerID}
     ss >> tmp;
-    if(tmp != "in") //TODO
+    if(tmp != "in") 
         err_quit("GetRoomInfo: recv %s", buf.c_str());
     ss >> k;
     if(rid != k) 
@@ -172,6 +178,11 @@ int GamePlay::GetRoomInfo() {
         std::stringstream sst;
         sst << "19 " << r;
         Write(sockfd, sst.str().c_str(), sst.str().length());
+        played = 0;
+        rem_money = 15;
+        lst_val = -1;
+        MASKUc = 0;
+        MASKSt = 0;
         return GAME_START;
     }
     s = buf;
@@ -288,19 +299,68 @@ bool GamePlay::Play(int c) {
     int tmp = (int)MASKUc.to_ulong();
     if(PlayCard(sockfd, playerID, c, tmp) == -1) return 0;
     MASKUc[c] = 1;
+    lst_val = c;
     return 1;
 }
 
-void GamePlay::RecvPlay() {
+// if RecvPlay()/RecvBid().first == PlayNext(), play
+int GamePlay::PlayNext() { return (playerID+1)%myRoom.n_players; }
+
+int GamePlay::RecvPlay() {
     //TODO
-    //c {PlayerID} {code}
+    //ri {card}
+    //c {PlayerID}
+    //ap {id}
+    char buf[MAXLINE];
+    if(Recv(sockfd, buf) == -2) return -2;
+    std::stringstream ss(buf);
+    std::string tmp;
+    int pID, cd;
+    ss >> tmp >> pID;
+    if(tmp == "ap") {
+        //autoplay or end connection
+        //TODO
+        return AUTO_PLAYER;
+    }
+    else if(tmp == "ri") {
+        if(MASKUc.to_ulong() != 0) return -1;
+        MASKUc[pID] = 1;
+        if(playerID == 0) return PlayNext();
+        return 0;
+    }
+    //not pID's round, ignore
+    if(cd == 0) {
+        if(pID == playerID) {
+            if(lst_val == -1) return -1;
+            MASKUc[lst_val] = 0;
+            lst_val = -1;
+        }
+        return -1;
+    }
+    if(cd == 1) {
+        if(++played == myRoom.n_players) {
+            //start bidding
+            myRoom.inGame = 2;
+            played = 0;
+            lst_val = 0;
+        }
+    }
+    return pID;
 }
 
 // receive bid info
-void GamePlay::RecvBid() {
+std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //TODO
-    //b {PlayerID} {amount} {code}
-    //BID {NextPlayerID}
+    //b {PlayerID} {amount} {code} {NextPlayerID}
+    //be {PlayerID} {amount} {sPlayer}
+    //ap {PlayerID}
+    char buf[MAXLINE];
+    if(Recv(sockfd, buf) == -2) return {-2,{-2,-2}};
+    std::stringstream ss(buf);
+    std::string tmp;
+    int pID;
+    //TODO unfinished
+    return {0,{0,0}};
 }
 
 // bid

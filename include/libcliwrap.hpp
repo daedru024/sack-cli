@@ -18,10 +18,12 @@
 #define WRONG_DIGIT 7
 #define PRIVATE_FAIL 8
 #define TOO_MANY_PRIVATE 9
+
+#define AUTO_PLAYER 2048
 #define GAME_START 4096
 
 class GamePlay {
-    int sockfd, playerID, rem_money, roomID, color;
+    int sockfd, playerID, rem_money, roomID, color, played, lst_val;
     std::string servip, UserName;
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
@@ -38,6 +40,7 @@ public:
     int RoomID() { return roomID; }
     int Sockfd() { return sockfd; }
     std::string Username() { return UserName; }
+    int PlayedThisRound() { return played; }
 
     /**** CONNECTION ****/
     /********************/
@@ -45,7 +48,7 @@ public:
     int Connect();
     // end connection
     int EndConn();
-    // is connected (placeholder, will be improved)
+    // is connected
     bool isConnected();
     // Connect/reconnect
     int Reconnect();
@@ -84,10 +87,12 @@ public:
     /************************/
     // play card
     bool Play(int c);
-    // receive bid info
-    void RecvBid();
-    // receive play card info
-    void RecvPlay();
+    // if RecvPlay() or myRoom.inGame==1 && RecvBid().first == PlayNext(), play card
+    int PlayNext();
+    // receive bid info {NextPlayerID, {playerID, amount}}
+    std::pair<int,std::pair<int,int>> RecvBid();
+    // receive play card info. Returns who played this round
+    int RecvPlay();
     /*** ^ I need to know how you'd update data during gameplay ***/
     // bid
     void SendBid(int amount);

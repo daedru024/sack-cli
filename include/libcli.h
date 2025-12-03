@@ -37,7 +37,7 @@ int PlayCard(int, int, int, int);
 int Privt(int, int);
 // returns recv string len. recvline must have size >= MAXLINE
 int Recv(int, char*);
-int RecvNB(int sockfd, char *recvline);
+// int RecvNB(int sockfd, char *recvline);
 void Write(int, const void*, size_t);
 
 void err_msg(const char*, ...);
