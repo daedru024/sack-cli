@@ -108,14 +108,15 @@ void runHostSettingPage(
         // --------------------------------------------------
         // ① 偵測 server 端是否已 pop 我 → Recv() == 0
         // --------------------------------------------------
-        char tmpbuf[MAXLINE];
-        int r = Recv(gameData.Sockfd(), tmpbuf);
-        if (r == 0) {
-            // server 已經斷線
-            reason = EndReason::Timeout;
-            state = State::RoomInfo;
-            return;
-        }
+        // char tmpbuf[MAXLINE];
+        // int r = Recv(gameData.Sockfd(), tmpbuf);
+        // if (r == 0) {
+        //     // server 已經斷線
+        //     reason = EndReason::Timeout;
+        //     state = State::RoomInfo;
+        //     return;
+        // }
+        gameData.isConnected();
 
         // --------------------------------------------------
         // ② Idle timeout → auto-kick

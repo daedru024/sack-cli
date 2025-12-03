@@ -185,126 +185,32 @@ int GamePlay::JoinRoom(int rid) {
 
 // join room (private)
 
-int GamePlay::JoinRoom(int rid, std::string Pwd) 
-{
+int GamePlay::JoinRoom(int rid, std::string Pwd) {
 #ifdef DEBUG
     printf("Joining room %d with PIN %s\n", rid, Pwd.c_str());
 #endif
-
     int PIN = stoi(Pwd);
     Join(sockfd, rid, UserName.c_str(), PIN);
-
     char buf[MAXLINE];
-    std::string head;
-
-    while (true) {
-        int n = Recv(sockfd, buf);
-
-        if (n == -2) {
-            // timeout：只是還沒收到，繼續等
-            continue;
-        }
-        if (n <= 0) {
-            // 真正錯誤或斷線
-            return -1;
-        }
-
-#ifdef DEBUG
-        printf("JoinRoom recv: %s\n", buf);
-#endif
-
-        std::stringstream ss(buf);
-        ss >> head;
-
-        if (head == "re") {
-            int code;
-            ss >> code;        // 0 Full 1 Locked 2 Private 3 WrongPIN 4 Playing
-            return code + 1;   // 對應到你原本的 ROOM_FULL..ROOM_PLAYING
-        }
-
-        if (head == "in") {
-            // in {RoomID} {n_Players} {username[:] color[:]} {locked} {PIN} {playerID}
-            break;  // 收到自己的 in 封包：成功進房
-        }
-
-        // 如果是 ra / ru / 其他人觸發的 in / ap / ri ... → 直接忽略，繼續等自己的回覆
+    Recv(sockfd, buf);
+    lst_conn = time(NULL);
+    std::stringstream ss(buf);
+    std::string rmerr;
+    ss >> rmerr;
+    if(rmerr == "re") {
+        // 0 Full 1 Locked 2 Private 3 WrongPIN 4 Playing
+        ss >> rid;
+        return rid+1;
     }
-
+    if(rmerr != "in") err_quit("recv: %s",buf);
     myRoom = Room(rid);
-    GetRoomInfo(rid, myRoom, std::string(buf));
+    GetRoomInfo(rid, myRoom, buf);
     roomID = rid;
-
 #ifdef DEBUG
-    printf("Joined room %d OK\n", rid);
+    printf("Joined room %d\n", rid);
 #endif
-
     return 0;
 }
-
-
-// int GamePlay::JoinRoom(int rid, std::string Pwd) 
-// {
-//     printf("Joining room %d with PIN %s\n", rid, Pwd.c_str());
-//     int PIN = stoi(Pwd);
-
-//     Join(sockfd, rid, UserName.c_str(), PIN);
-
-//     char buf[MAXLINE];
-//     std::string head;
-
-//     while (true) {
-//         int n = Recv(sockfd, buf);
-//         if (n <= 0) return -1;
-
-//         std::stringstream ss(buf);
-//         ss >> head;
-
-//         if (head == "re") {
-//             int code;
-//             ss >> code;
-//             return code + 1;
-//         }
-
-//         if (head == "in") {
-//             break;  // hit valid join response
-//         }
-
-//         // skip any ra/ru/in-from-other-player broadcasts
-//     }
-
-//     // Now buf contains our own "in roomInfo"
-//     myRoom = Room(rid);
-//     GetRoomInfo(rid, myRoom, buf);
-//     roomID = rid;
-
-//     return 0;
-// }
-// int GamePlay::JoinRoom(int rid, std::string Pwd) {
-// #ifdef DEBUG
-//     printf("Joining room %d with PIN %s\n", rid, Pwd.c_str());
-// #endif
-//     int PIN = stoi(Pwd);
-//     Join(sockfd, rid, UserName.c_str(), PIN);
-//     char buf[MAXLINE];
-//     Recv(sockfd, buf);
-//     lst_conn = time(NULL);
-//     std::stringstream ss(buf);
-//     std::string rmerr;
-//     ss >> rmerr;
-//     if(rmerr == "re") {
-//         // 0 Full 1 Locked 2 Private 3 WrongPIN 4 Playing
-//         ss >> rid;
-//         return rid+1;
-//     }
-//     if(rmerr != "in") err_quit("recv: %s",buf);
-//     myRoom = Room(rid);
-//     GetRoomInfo(rid, myRoom, buf);
-//     roomID = rid;
-// #ifdef DEBUG
-//     printf("Joined room %d\n", rid);
-// #endif
-//     return 0;
-// }
 
 // lock room
 int GamePlay::LockRoom() {

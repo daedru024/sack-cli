@@ -48,9 +48,10 @@ namespace LobbyUI {
     constexpr float COLOR_LABEL_Y = 170.f;
     constexpr float COLOR_PICKER_Y = 250.f;
 
-    constexpr float LOCK_Y        = 330.f;
-    constexpr float LOCK_W        = 200.f;
-    constexpr float LOCK_H        = 55.f;
+    constexpr float START_X       = 230.f;
+    constexpr float START_Y       = 480.f;
+    constexpr float START_W       = 260.f;
+    constexpr float START_H       = 70.f;
 
     constexpr float READY_Y       = 400.f;
     constexpr float READY_W       = 200.f;
@@ -58,17 +59,15 @@ namespace LobbyUI {
 
     constexpr float READY_STATE_Y = 500.f;
 
-    constexpr float START_X       = 260.f;
-    constexpr float START_Y       = 520.f;
-    constexpr float START_W       = 260.f;
-    constexpr float START_H       = 70.f;
-
     constexpr float KICK_HINT_X   = 400.f;
     constexpr float KICK_HINT_Y   = 560.f;
 
     constexpr float KICK_TIME     = 30.f;
 }
 
+// ============================================================
+// tool text creators
+// ============================================================
 static sf::Text mkCenter(
     const sf::Font& font, const std::string& str,
     int size, const sf::Color& col)
@@ -136,7 +135,7 @@ void runInRoomPage(
         }
     }
 
-    // READY 狀態：拆成 server 與 local
+    // READY 狀態：拆 server/local
     std::vector<int>  colorIndex(room.colors);
     std::vector<bool> serverReady(n, false);
     std::vector<bool> localReady(n, false);
@@ -150,7 +149,6 @@ void runInRoomPage(
     std::string titleStr = room.name +
         " (" + std::to_string(n) + "/5 Players)";
     if (room.isLocked()) titleStr += " - LOCKED";
-
     Label title(&font, titleStr, TITLE_X, TITLE_Y, 40,
                 sf::Color::White, sf::Color::Black, 5);
     title.centerText();
@@ -175,15 +173,15 @@ void runInRoomPage(
                      sf::Color::White, sf::Color::Black, 3);
     colorLabel.centerText();
 
-    Button lockBtn(&font, "LOCK ROOM",
-                   PANEL_CENTER, LOCK_Y, LOCK_W, LOCK_H, true);
+    //  Locked & Start
+    Button lockBtn(&font, "LOCK & START",
+               START_X, START_Y, START_W, START_H, true);
+    lockBtn.text.setCharacterSize(28);
+    lockBtn.centerText();
+
 
     Button readyBtn(&font, "READY",
                     PANEL_CENTER, READY_Y, READY_W, READY_H, true);
-
-    Button startBtn(&font, "START GAME",
-                    START_X, START_Y, START_W, START_H, true);
-    startBtn.text.setCharacterSize(26);
 
     Label readyStateLabel(&font, "Not Ready",
                           PANEL_CENTER, READY_STATE_Y, 22,
@@ -205,7 +203,7 @@ void runInRoomPage(
     // ========================= LOOP ============================
     while (window.isOpen() && state == State::InRoom)
     {
-        // ----------- 每 frame 先同步 server 狀態 -----------
+        // ------------ 同步 server 狀態 ------------
         int prevMyIndex = myIndex;
 
         int status = gameData.GetRoomInfo();
@@ -214,7 +212,6 @@ void runInRoomPage(
             return;
         }
 
-        // 更新 room / players / 顏色
         room = gameData.myRoom;
         n    = room.n_players;
 
@@ -224,56 +221,46 @@ void runInRoomPage(
             return;
         }
 
-        // 更新 myIndex（server 可能重新編號）
+        // 更新 playerID
         myIndex = gameData.PlayerID();
         if (myIndex < 0 || myIndex >= n) {
             state = State::RoomInfo;
             return;
         }
 
-        // 調整 localReady / serverReady / colorIndex 長度
+        // 更新 Ready 狀態
         colorIndex = room.colors;
-
         serverReady.assign(n, false);
         for (int i = 0; i < n; i++)
             serverReady[i] = (colorIndex[i] != -1);
 
         if ((int)localReady.size() != n) {
             std::vector<bool> newLocal(n, false);
-            int copyCnt = std::min<int>((int)localReady.size(), n);
-            for (int i = 0; i < copyCnt; ++i)
+            int copyCnt = std::min((int)localReady.size(), n);
+            for (int i = 0; i < copyCnt; i++)
                 newLocal[i] = localReady[i];
             localReady.swap(newLocal);
         }
 
-        // 如果我的 index 改變（例如 host 離開導致整隊左移）
         if (myIndex != prevMyIndex) {
-            // 以前那格標記清掉
             if (prevMyIndex >= 0 && prevMyIndex < (int)localReady.size())
                 localReady[prevMyIndex] = false;
-            // 新位置跟著 server ready 狀態走
             localReady[myIndex] = serverReady[myIndex];
         }
 
-        // 重新算 isHost（host 永遠是 playerID 0）
         isHost = (myIndex == 0);
 
-        auto& playersRef = room.playerNames; // 更新引用
-        // 讓上面的 lambda 用到最新 players
-        const_cast<std::vector<std::string>&>(players) = playersRef;
+        const_cast<std::vector<std::string>&>(players) = room.playerNames;
 
-        // ------------------------------------------------------
-        // 處理事件
-        // ------------------------------------------------------
+        // ========================= event =========================
         sf::Event e;
         while (window.pollEvent(e))
         {
             if (e.type == sf::Event::Closed)
                 window.close();
 
-            if (e.type == sf::Event::Resized) {
+            if (e.type == sf::Event::Resized)
                 updateBackgroundUI();
-            }
 
             // EXIT
             if (exitBtn.clicked(e, window)) {
@@ -282,94 +269,79 @@ void runInRoomPage(
                 return;
             }
 
-            // READY toggle（只改 local，不被 server 立即覆蓋）
+            // READY
             if (readyBtn.clicked(e, window))
             {
                 if (colorIndex[myIndex] == -1) {
                     std::cout << "Choose color first.\n";
                 }
-                else if (!localReady[myIndex]) 
+                else if (!localReady[myIndex])
                 {
-                    // 只能從未準備 → 準備
                     localReady[myIndex] = true;
                     counting = false;
+
                     gameData.ChooseColor(colorIndex[myIndex]);
 
                     readyBtn.setDisabled(true);
                 }
             }
 
-            // Color selection
+            // Color select
             if (!localReady[myIndex]) {
                 selector.updateClick(e, window,
                     [&](int c){ return isColorTaken(c); });
                 colorIndex[myIndex] = selector.selected;
             }
 
-            // Host: Lock / Unlock
+            // ✨ Host: LOCK & START
             if (isHost && lockBtn.clicked(e, window))
             {
-                int curPlayers = room.n_players;
-
-                if (!room.locked)
-                {
-                    if (curPlayers < 3)
-                    {
-                        std::cout << "Need at least 3 players.\n";
-                    }
-                    else
-                    {
-                        int err = gameData.LockRoom();
-                        (void)err; // server 會更新廣播
-                    }
+                if (room.n_players < 3) {
+                    std::cout << "[Host] Need >= 3 players.\n";
+                    continue;
                 }
-                else
-                {
-                    if (!room.inGame)
-                        gameData.UnlockRoom();
-                }
-            }
 
-            // Host: START GAME
-            if (isHost && startBtn.clicked(e, window))
-            {
                 bool allReady = true;
                 for (int i = 0; i < n; i++)
-                    if (!serverReady[i])
-                        allReady = false;
+                    if (!serverReady[i]) allReady = false;
 
-                if (room.isLocked() && allReady) {
-                    gameData.StartRequest();
-                    std::cout << "[Host] Start request sent. Waiting for GAMESTART...\n";
+                if (!allReady) {
+                    std::cout << "[Host] Everyone must choose color first.\n";
+                    continue;
                 }
+
+                // ▶ server stat = 4, 自動送 GAMESTART
+                gameData.LockRoom();
+                std::cout << "[Host] LOCK & START sent.\n";
             }
         }
 
-        // Auto-kick
+        // auto-kick
         if (counting && !localReady[myIndex])
         {
             float elapsed = idleTimer.getElapsedTime().asSeconds();
-            if (elapsed > KICK_TIME)
-            {
+            if (elapsed > KICK_TIME) {
                 room.resetIfEmpty();
                 state = State::RoomInfo;
                 return;
             }
         }
 
-        // ====================== Draw =========================
+        // ====================== draw =========================
         window.setView(uiView);
         window.clear();
         drawBackground(window);
 
-        // 更新標題顯示人數 & locked 狀態
+        // 標題
         std::string titleStrNow = room.name +
             " (" + std::to_string(n) + "/5 Players)";
         if (room.isLocked()) titleStrNow += " - LOCKED";
+
         title.text.setString(titleStrNow);
         title.centerText();
         title.draw(window);
 
+        // player list panel
         listPanel.setSize({LIST_W, LIST_HEADER_H + n * ROW_H + LIST_V_PADDING * 2});
         window.draw(listPanel);
 
@@ -379,7 +351,7 @@ void runInRoomPage(
             window.draw(header);
         }
 
-        // Player list
+        // players
         for (int i = 0; i < n; i++)
         {
             float cy = LIST_Y + getRowY(i);
@@ -402,7 +374,6 @@ void runInRoomPage(
             window.draw(pname);
 
             bool showReady = serverReady[i];
-
             sf::Text r = mkLeft(
                 font,
                 showReady ? "Ready" : "Not Ready",
@@ -413,8 +384,9 @@ void runInRoomPage(
             window.draw(r);
         }
 
-        // Color selection UI
+        // UI elements
         colorLabel.draw(window);
+
         selector.preview.setFillColor(
             colorIndex[myIndex] >= 0 ?
             PLAYER_COLORS[colorIndex[myIndex]] :
@@ -426,9 +398,10 @@ void runInRoomPage(
         exitBtn.update(window);
         exitBtn.draw(window);
 
+        // READY button
         if (localReady[myIndex]) {
             readyBtn.setDisabled(true);
-            readyBtn.shape.setFillColor(sf::Color(150,200,150)); // darker_ready
+            readyBtn.shape.setFillColor(sf::Color(150,200,150));
         }
         else {
             readyBtn.setDisabled(false);
@@ -443,38 +416,25 @@ void runInRoomPage(
         );
         readyStateLabel.draw(window);
 
-        // Host UI
+        // ✨ Host 按鈕：LOCK & START
         if (isHost)
         {
-            int curPlayers = room.n_players;
+            bool canStart = (room.n_players >= 3);
+            for (int i = 0; i < n; i++)
+                if (!serverReady[i]) canStart = false;
 
-            if (room.locked)
-                lockBtn.shape.setFillColor(sf::Color(120,200,120));
-            else if (curPlayers < 3)
-                lockBtn.shape.setFillColor(sf::Color(180,180,180));
-            else
-                lockBtn.shape.setFillColor(sf::Color(220,220,220));
+            lockBtn.setDisabled(!canStart);
+            lockBtn.shape.setFillColor(
+                canStart ?
+                    sf::Color(120,200,120) :
+                    sf::Color(180,180,180)
+            );
 
             lockBtn.update(window);
             lockBtn.draw(window);
-
-            bool allReady = true;
-            for (int i = 0; i < n; i++)
-                if (!serverReady[i])
-                    allReady = false;
-
-            startBtn.setDisabled(!(room.locked && allReady));
-
-            if (startBtn.disabled)
-                startBtn.shape.setFillColor(sf::Color(80,80,80));
-            else
-                startBtn.shape.setFillColor(sf::Color(120,200,120));
-
-            startBtn.update(window);
-            startBtn.draw(window);
         }
 
-        // Auto-kick 提示
+        // auto kick info
         if (!localReady[myIndex] && counting)
         {
             float remain = KICK_TIME - idleTimer.getElapsedTime().asSeconds();
