@@ -19,12 +19,15 @@
 #define PRIVATE_FAIL 8
 #define TOO_MANY_PRIVATE 9
 
+#define IS_CARD 512
+#define CHOOSE_RABBIT 1024
 #define AUTO_PLAYER 2048
 #define GAME_START 4096
 
 class GamePlay {
-    int sockfd, playerID, rem_money, roomID, color, played, lst_val;
+    int sockfd, playerID, rem_money, roomID, color, played, lst_val, lst_bid;
     std::string servip, UserName;
+    std::vector<int> MakeUp;
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
 public:
@@ -41,6 +44,10 @@ public:
     int Sockfd() { return sockfd; }
     std::string Username() { return UserName; }
     int PlayedThisRound() { return played; }
+    int LastBid() { return lst_bid; }
+    int PriceNow() { return lst_val; }
+    int Round() { return (myRoom.inGame>0) * ((myRoom.inGame-1)/2+1); }
+    int RoomStat() { return (myRoom.inGame==19)*3 + (myRoom.inGame>0 && myRoom.inGame<19) * ((myRoom.inGame+1)%2+1); }
 
     /**** CONNECTION ****/
     /********************/
@@ -76,12 +83,14 @@ public:
     int MakePrivate(std::string Pwd);
     // make room public, return -1 if player is not host
     int MakePublic();
+    // start game
+    int GameStart();
     // send unlock message
     int UnlockRoom();
 
-    /**** GAME Request ****/
-    /************************/
-    int StartRequest();
+    // /**** GAME Request ****/
+    // /************************/
+    // int StartRequest();
 
     /**** GAME MECHANISM ****/
     /************************/
@@ -89,8 +98,10 @@ public:
     bool Play(int c);
     // if RecvPlay() or myRoom.inGame==1 && RecvBid().first == PlayNext(), play card
     int PlayNext();
-    // receive bid info {NextPlayerID, {playerID, amount}}
+    // receive bid info {NextPlayerID if no err else code, {playerID, amount if amount>0 else cardID+IS_CARD}}, **playerID can be negative**
     std::pair<int,std::pair<int,int>> RecvBid();
+    // choose rabbit
+    void Rabbit(int r);
     // receive play card info. Returns who played this round
     int RecvPlay();
     /*** ^ I need to know how you'd update data during gameplay ***/
