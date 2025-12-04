@@ -264,6 +264,7 @@ int GamePlay::GameStart() {
     MASKUc = 0;
     MASKSt = 0;
     lst_conn = time(NULL);
+    CardsPlayed = std::vector<int>(myRoom.n_players, -1);
     MakeUp = std::vector<int>(myRoom.n_players);
     switch(myRoom.n_players) {
     case 3:
@@ -365,6 +366,7 @@ int GamePlay::RecvPlay() {
             played = 0;
             lst_val = 0;
             lst_bid = 0;
+            CardsPlayed = std::vector<int>(myRoom.n_players, -1);
         }
     }
     return pID;
@@ -376,7 +378,15 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //be {PlayerID} {amount} {sPlayer}
     //ap {PlayerID}
     char buf[MAXLINE];
-    if(Recv(sockfd, buf) == -2) return {-2,{-2,-2}};
+    time_t tm = time(NULL);
+    if(Recv(sockfd, buf) == -2) {
+        if(difftime(tm, lst_conn) >= 55) {
+            Write(sockfd, "  ", 2);
+            lst_conn = tm;
+        }
+        return {-2,{-2,-2}};
+    }
+    lst_conn = tm;
     std::stringstream ss(buf);
     std::string tmp;
     int pID;
@@ -393,20 +403,20 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
             if(amount>0) lst_val = amount;
             else if(amount == 0) {
                 //abandoned bid
-                ss >> amount;
+                ss >> CardsPlayed[played];
                 if(pID == playerID) {
                     rem_money += MakeUp[played];
                     lst_bid = 0;
                 }
                 played++;
-                return {npID, {pID, amount+IS_CARD}};
+                return {npID, {pID, amount}};
             }
             if(pID == playerID) lst_bid = amount;
         }
         return {npID, {pID, amount}};
     }
     if(tmp == "be") {
-        ss >> amount >> npID;
+        ss >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
         std::pair<int,std::pair<int,int>> ret;
         if(amount <= 0) ret = {npID, {-1, -1}};
         else {
@@ -420,6 +430,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         lst_bid = 0;
         lst_val = -1;
         played = 0;
+        return ret;
     }
     return {0,{0,0}};
 }

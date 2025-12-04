@@ -19,7 +19,6 @@
 #define PRIVATE_FAIL 8
 #define TOO_MANY_PRIVATE 9
 
-#define IS_CARD 512
 #define CHOOSE_RABBIT 1024
 #define AUTO_PLAYER 2048
 #define GAME_START 4096
@@ -27,11 +26,11 @@
 class GamePlay {
     int sockfd, playerID, rem_money, roomID, color, played, lst_val, lst_bid;
     std::string servip, UserName;
-    std::vector<int> MakeUp;
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
 public:
     Room myRoom;
+    std::vector<int> MakeUp, CardsPlayed;
     GamePlay() {std::srand(time(NULL));}
     GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
     
@@ -98,7 +97,7 @@ public:
     bool Play(int c);
     // if RecvPlay() or myRoom.inGame==1 && RecvBid().first == PlayNext(), play card
     int PlayNext();
-    // receive bid info {NextPlayerID if no err else code, {playerID, amount if amount>0 else cardID+IS_CARD}}, **playerID can be negative**
+    // receive bid info {NextPlayerID if no err else code, {playerID, amount}}, **playerID can be negative**
     std::pair<int,std::pair<int,int>> RecvBid();
     // choose rabbit
     void Rabbit(int r);
