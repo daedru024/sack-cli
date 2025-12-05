@@ -66,30 +66,19 @@ int main()
                 runInRoomPage(window, state, username, reason);
                 break;
 
-            case State::Game:
-            {
-                window.setView(uiView);
-                window.clear();
-                window.draw(g_bgSprite());
-                window.draw(g_bgOverlay());
-
-                sf::Font font;
-                font.loadFromFile("fonts/SourceHanSansTC-Regular.otf");
-
-
-                sf::Text tx("Game starting ... (placeholder)", font, 28);
-                tx.setFillColor(sf::Color::White);
-                tx.setOutlineColor(sf::Color::Black);
-                tx.setOutlineThickness(2);
-                tx.setPosition(120, 260);
-                window.draw(tx);
-
-                window.display();
-                break;
-            }
-
+            // 起始手牌 
             case State::GameStart:
-                runGamePage(window, state, reason, username);
+                runStartHandPage(window, state, reason, username);
+                break;
+            
+            // 棄牌
+            case State::Discard:
+                runDiscardPage(window, state, reason, username);
+                break;
+
+            // 正式遊戲出牌階段
+            case State::Game:
+                runPlayPhasePage(window, state, reason, username);
                 break;
 
             case State::ReEstablish:

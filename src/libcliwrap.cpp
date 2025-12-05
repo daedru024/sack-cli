@@ -150,65 +150,110 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 
 int GamePlay::GetRoomInfo() {
     char buf[MAXLINE];
-    int status = 0;
-    
-    // ★ 修正 1: 增加迴圈以處理所有已排隊的訊息，避免卡在舊訊息上 (Buffer Drain)
-    while (true) {
-        // Recv(sockfd, buf) 預期在沒有資料時返回 -2
-        if (Recv(sockfd, buf) == -2) {
-            status = 0; // 沒有新的訊息，狀態設為 0
-            break; 
-        }
-        
-        if (strlen(buf) == 0) return 0; // 連線關閉
 
-        lst_conn = time(NULL);
-        std::stringstream ss(buf);
-        std::string s;
-        ss >> s;
-
-        // 檢查 1: 是否為獨立的 GAMESTART 訊息
-        if (s == "GAMESTART") {
-            status = GAME_START;
-        } 
-        // 檢查 2: 是否為房間更新訊息 (可能附帶 GAMESTART)
-        else {
-            std::string full_msg = buf;
-            // 讓 GetRoomInfo(rid, room, buf) 檢查 GAMESTART 是否被附加
-            if (GetRoomInfo(roomID, myRoom, full_msg) == GAME_START) {
-                status = GAME_START;
-            }
-        }
-        
-        if (status == GAME_START) {
-            // 已找到 GAMESTART，跳出訊息處理迴圈
-            break;
-        }
-        
-        // 如果不是 GAMESTART (status=0)，繼續下一輪迴圈檢查是否有更多訊息
-    }
-    
-    // Keep-alive (現在只有在 Recv 超時/Buffer 清空時才會執行到)
-    if (status == 0) {
+    // --- 非阻塞讀取一包訊息 ---
+    if (Recv(sockfd, buf) == -2) {
+        // keep-alive
         time_t currtime = time(NULL);
-        if(difftime(currtime, lst_conn) >= 55) {
+        if (difftime(currtime, lst_conn) >= 50) {
             Write(sockfd, "  ", 2);
 #ifdef DEBUG
             printf("Alive msg\n");
 #endif
             lst_conn = currtime;
         }
-        return 0; // 沒有 GAMESTART，返回 0 讓 UI 迴圈繼續
+        return 0;   // 沒訊息
     }
-    if(strlen(buf) == 0) return 0; //conn closed
+
+    // 若 server 關閉連線 → 直接回房間
+    if (strlen(buf) == 0)
+        return 0;
+
     lst_conn = time(NULL);
+
+    // ---- 判斷指令 ----
     std::stringstream ss(buf);
     std::string s;
     ss >> s;
-    if(s == "GAMESTART") return GameStart();
-    s = buf;
-    return GetRoomInfo(roomID, myRoom, s);
+
+    if (s == "GAMESTART") {
+        myRoom.inGame = 1;
+        played = 0;
+        rem_money = 15;
+        lst_val = -1;
+        MASKUc = 0;
+        MASKSt = 0;
+
+        return GAME_START;
+    }
+
+    // 其他則視為 roominfo 型態
+    std::string msg = buf;
+    return GetRoomInfo(roomID, myRoom, msg);
 }
+
+
+// int GamePlay::GetRoomInfo() {
+//     char buf[MAXLINE];
+//     int status = 0;
+    
+//     // ★ 修正 1: 增加迴圈以處理所有已排隊的訊息，避免卡在舊訊息上 (Buffer Drain)
+//     while (true) {
+//         // Recv(sockfd, buf) 預期在沒有資料時返回 -2
+//         if (Recv(sockfd, buf) == -2) {
+//             status = 0; // 沒有新的訊息，狀態設為 0
+//             break; 
+//         }
+        
+//         if (strlen(buf) == 0) return 0; // 連線關閉
+
+//         lst_conn = time(NULL);
+//         std::stringstream ss(buf);
+//         std::string s;
+//         ss >> s;
+
+//         // 檢查 1: 是否為獨立的 GAMESTART 訊息
+//         if (s == "GAMESTART") {
+//             status = GAME_START;
+//         } 
+//         // 檢查 2: 是否為房間更新訊息 (可能附帶 GAMESTART)
+//         else {
+//             std::string full_msg = buf;
+//             // 讓 GetRoomInfo(rid, room, buf) 檢查 GAMESTART 是否被附加
+//             if (GetRoomInfo(roomID, myRoom, full_msg) == GAME_START) {
+//                 status = GAME_START;
+//             }
+//         }
+        
+//         if (status == GAME_START) {
+//             // 已找到 GAMESTART，跳出訊息處理迴圈
+//             break;
+//         }
+        
+//         // 如果不是 GAMESTART (status=0)，繼續下一輪迴圈檢查是否有更多訊息
+//     }
+    
+//     // Keep-alive (現在只有在 Recv 超時/Buffer 清空時才會執行到)
+//     if (status == 0) {
+//         time_t currtime = time(NULL);
+//         if(difftime(currtime, lst_conn) >= 55) {
+//             Write(sockfd, "  ", 2);
+// #ifdef DEBUG
+//             printf("Alive msg\n");
+// #endif
+//             lst_conn = currtime;
+//         }
+//         return 0; // 沒有 GAMESTART，返回 0 讓 UI 迴圈繼續
+//     }
+//     if(strlen(buf) == 0) return 0; //conn closed
+//     lst_conn = time(NULL);
+//     std::stringstream ss(buf);
+//     std::string s;
+//     ss >> s;
+//     if(s == "GAMESTART") return GameStart();
+//     s = buf;
+//     return GetRoomInfo(roomID, myRoom, s);
+// }
 
 // int GamePlay::GetRoomInfo() {
 //     char buf[MAXLINE];
@@ -332,6 +377,7 @@ int GamePlay::MakePublic() {
 // start game
 int GamePlay::GameStart() {
     myRoom.inGame = 1;
+    removedCardId = -1;
     played = 0;
     rem_money = 15;
     lst_val = -1;
@@ -351,7 +397,7 @@ int GamePlay::GameStart() {
     case 5:
         MakeUp = {2, 3, 4, 6, 0};
     }
-    if(playerID == 0) return CHOOSE_RABBIT;
+    //if(playerID == 0) return CHOOSE_RABBIT;
     return GAME_START;
 }
 
@@ -421,8 +467,9 @@ int GamePlay::RecvPlay() {
     else if(tmp == "ri") {
         if(MASKUc.to_ulong() != 0) return -1;
         MASKUc[pID] = 1;
+        removedCardId = pID;
         if(playerID == 0) return PlayNext();
-        else return CHOOSE_RABBIT;
+        return CHOOSE_RABBIT;
     }
     if(!ss_empty(ss)) ss >> cd;
     //not pID's round, ignore

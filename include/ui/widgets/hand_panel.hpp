@@ -10,6 +10,7 @@ public:
     std::vector<int>         handIds;     // cardId (0..9)
     std::vector<CardWidget>  cards;       // 對應視覺物件
     int                      selectedIdx = -1;
+    bool blindMode = false; //牌背模式
 
     // 底部區域 (預設 800x600 底部 1/3)
     float areaLeft   = 80.f;
@@ -22,19 +23,30 @@ public:
         areaY     = centerY;
     }
 
-    // 設定手牌，會依 cardValue 排序
+    // 設定手牌，會依 cardValue 排序 (除非是盲選模式，排序沒意義)
     void setHand(const std::vector<int>& ids, const sf::Font& font) {
         handIds = ids;
-        std::sort(handIds.begin(), handIds.end(),
-                  [](int a, int b) {
-                      return cardValue(a) < cardValue(b);
-                  });
+        if (!blindMode) { // 只有非盲選才需要排序
+            std::sort(handIds.begin(), handIds.end(),
+                      [](int a, int b) {
+                          return cardValue(a) < cardValue(b);
+                      });
+        }
         rebuildCards(font);
+    }
+
+    // 設定是否為盲選模式 (顯示牌背)
+    void setBlindMode(bool blind) {
+        blindMode = blind;
     }
 
     int selectedCardId() const {
         if (selectedIdx < 0 || selectedIdx >= (int)handIds.size()) return -1;
         return handIds[selectedIdx];
+    }
+
+    int selectedIndex() const {
+        return selectedIdx;
     }
 
     void clearSelection() {
@@ -72,7 +84,6 @@ public:
             selectedIdx = newSel;
             cards[selectedIdx].setSelected(true);
         }
-
     }
 
     void draw(sf::RenderWindow& win) const {
@@ -93,11 +104,12 @@ private:
 
         float x = areaLeft;
         for (int id : handIds) {
-            CardWidget cw(font, id, {x, areaY - cardHeight / 2.f}, {cardWidth, cardHeight});
+            int displayId = blindMode ? 999 : id; // 999代表牌背
+            CardWidget cw(font, displayId, {x, areaY - cardHeight / 2.f}, {cardWidth, cardHeight});
             cards.push_back(cw);
             x += cardWidth + spacing;
         }
-
+        
         // reset selection
         selectedIdx = -1;
     }

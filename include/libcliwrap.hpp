@@ -19,9 +19,11 @@
 #define PRIVATE_FAIL 8
 #define TOO_MANY_PRIVATE 9
 
+#define GOT_RI 512
 #define CHOOSE_RABBIT 1024
 #define AUTO_PLAYER 2048
 #define GAME_START 4096
+
 
 class GamePlay {
     int sockfd, playerID, rem_money, roomID, color, played, lst_val, lst_bid;
@@ -30,6 +32,8 @@ class GamePlay {
     time_t lst_conn;
 public:
     Room myRoom;
+    int removedCardId = -1;
+    //int startFlag = 0;
     std::vector<int> MakeUp, CardsPlayed;
     GamePlay() {std::srand(time(NULL));}
     GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
@@ -104,6 +108,7 @@ public:
     // receive play card info. Returns who played this round
     int RecvPlay();
     /*** ^ I need to know how you'd update data during gameplay ***/
+    bool HasCard(int cid) const { return !MASKUc[cid]; }
     // bid
     void SendBid(int amount);
     //TODO: get score

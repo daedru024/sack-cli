@@ -204,14 +204,23 @@ void runInRoomPage(
     // ========================= LOOP ============================
     while (window.isOpen() && state == State::InRoom)
     {
+        // if (gameData.startFlag == GAME_START || gameData.startFlag == CHOOSE_RABBIT)
+        // {
+        //     std::cout << gameData.startFlag;
+        //     state = State::GameStart;
+        //     return;
+        // }
+
         // ------------ 同步 server 狀態 ------------
         int prevMyIndex = myIndex;
 
         int status = gameData.GetRoomInfo();
         if (status == GAME_START) {
+            // 一收到 GameStart → 進入起始手牌階段
             state = State::GameStart;
             return;
         }
+
 
         room = gameData.myRoom;
         n    = room.n_players;
@@ -322,6 +331,13 @@ void runInRoomPage(
                 // ▶ server stat = 4, 自動送 GAMESTART
                 gameData.LockRoom();
                 std::cout << "[Host] LOCK & START sent.\n";
+
+                // if (gameData.startFlag == GAME_START || gameData.startFlag == CHOOSE_RABBIT)
+                // {
+                //     std::cout << "[Instant Check] StartFlag: " << gameData.startFlag << std::endl;
+                //     state = State::GameStart;
+                //     return;
+                // }
             }
         }
 

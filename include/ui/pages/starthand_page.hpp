@@ -3,7 +3,7 @@
 #include <string>
 #include "app/app.hpp"   // for State, EndReason
 
-void runGamePage(
+void runStartHandPage(
     sf::RenderWindow& window,
     State&            state,
     EndReason&        reason,
