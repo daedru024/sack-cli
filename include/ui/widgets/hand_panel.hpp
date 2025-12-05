@@ -37,6 +37,13 @@ public:
         return handIds[selectedIdx];
     }
 
+    void clearSelection() {
+        if (selectedIdx != -1) {
+            cards[selectedIdx].setSelected(false);
+        }
+        selectedIdx = -1;
+    }
+
     void handleClick(const sf::Event& e, sf::RenderWindow& win) {
         if (e.type != sf::Event::MouseButtonReleased ||
             e.mouseButton.button != sf::Mouse::Left)
@@ -53,14 +60,19 @@ public:
             }
         }
 
-        if (newSel == selectedIdx) return;
+        if(newSel == -1) return;
 
-        if (selectedIdx != -1)
+        if (newSel == selectedIdx){
             cards[selectedIdx].setSelected(false);
-
-        selectedIdx = newSel;
-        if (selectedIdx != -1)
+            selectedIdx = -1;
+        }
+        else{
+            if (selectedIdx != -1)
+                cards[selectedIdx].setSelected(false);
+            selectedIdx = newSel;
             cards[selectedIdx].setSelected(true);
+        }
+
     }
 
     void draw(sf::RenderWindow& win) const {
@@ -75,7 +87,7 @@ private:
         float totalWidth = areaRight - areaLeft;
         int   n          = (int)handIds.size();
 
-        float cardWidth  = std::min(80.f, totalWidth / (n + 0.5f));
+        float cardWidth  = std::min(70.f, totalWidth / (n + 0.5f));
         float cardHeight = cardWidth * 1.4f;
         float spacing    = (totalWidth - n * cardWidth) / (n - 1 <= 0 ? 1 : (n - 1));
 

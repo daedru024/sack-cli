@@ -5,6 +5,7 @@ enum class State {
     RoomInfo,
     InRoom,
     GameStart,
+    Game,
     HostSetting,
     Rules,
     ReEstablish,

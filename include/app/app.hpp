@@ -29,6 +29,7 @@
 #include "ui/pages/room_info_page.hpp"
 #include "ui/pages/rules_page.hpp"
 #include "ui/pages/username_page.hpp"
+#include "ui/pages/game_page.hpp"
 
 // =====================
 // Widgets

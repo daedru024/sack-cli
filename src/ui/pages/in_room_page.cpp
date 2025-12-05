@@ -141,8 +141,9 @@ void runInRoomPage(
     std::vector<bool> localReady(n, false);
 
     for (int i = 0; i < n; i++)
-        serverReady[i] = (colorIndex[i] != -1);
-    localReady[myIndex] = serverReady[myIndex];
+        if (localReady[i])
+            serverReady[i] = true;
+    localReady[myIndex] = localReady[myIndex];
 
     bool isHost = (myIndex == 0);
 
@@ -229,7 +230,15 @@ void runInRoomPage(
         }
 
         // 更新 Ready 狀態
-        colorIndex = room.colors;
+        // 不覆蓋自己正在選的顏色
+        for (int i = 0; i < n; i++) {
+            if (i == myIndex && !localReady[myIndex]) {
+                // 選色中 → 保留 local 的 selector 顏色
+                continue;
+            }
+            colorIndex[i] = room.colors[i];
+        }
+
         serverReady.assign(n, false);
         for (int i = 0; i < n; i++)
             serverReady[i] = (colorIndex[i] != -1);
