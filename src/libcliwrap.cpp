@@ -350,8 +350,11 @@ int GamePlay::RecvPlay() {
         if(MASKUc.to_ulong() != 0) return -1;
         MASKUc[pID] = 1;
         removedCardId = pID;
-        //if(playerID == 0) return PlayNext();
+        if(playerID == 0) return PlayNext();
         return CHOOSE_RABBIT;
+    }
+    else if(tmp == "START_ROUND") {
+        return PlayNext();
     }
     if(!ss_empty(ss)) ss >> cd;
     //not pID's round, ignore

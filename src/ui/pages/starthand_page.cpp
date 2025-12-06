@@ -142,6 +142,11 @@ void runStartHandPage(
             state = State::Game; // runPlayPhasePage() 在 main 裡處理
             return;
         }
+        //added
+        if (gameData.PlayerID() == 0) {
+            state = State::Game;
+            return;
+        }
 
         // 其餘 status = -1 / AUTO_PLAYER → 忽略即可
 
