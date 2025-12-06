@@ -87,7 +87,7 @@ void runPlayPhasePage(
     // 按鈕：出牌
     // ===============================
     Button playBtn(&font, "PLAY CARD",
-                   400, 520, 160, 50, true);
+                   400, 520, 180, 50, true);
     playBtn.setDisabled(true);
 
     // ===============================

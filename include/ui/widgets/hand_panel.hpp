@@ -98,11 +98,27 @@ private:
         float totalWidth = areaRight - areaLeft;
         int   n          = (int)handIds.size();
 
-        float cardWidth  = std::min(70.f, totalWidth / (n + 0.5f));
+        float cardWidth  = 50.f;
         float cardHeight = cardWidth * 1.4f;
-        float spacing    = (totalWidth - n * cardWidth) / (n - 1 <= 0 ? 1 : (n - 1));
+        // float spacing    = (totalWidth - n * cardWidth) / (n - 1 <= 0 ? 1 : (n - 1));
 
-        float x = areaLeft;
+        // float x = areaLeft;
+
+        float spacing = 10.f;
+
+        // 計算實際內容需要的總寬度
+        float contentW = n * cardWidth + (n - 1) * spacing;
+
+        // 若超出範圍 (雖然10張50寬不太可能超)，則自動縮小間距以避免超出邊界
+        if (contentW > totalWidth && n > 1) {
+            spacing = (totalWidth - n * cardWidth) / (n - 1);
+            contentW = totalWidth;
+        }
+
+        float startX = areaLeft + (totalWidth - contentW) / 2.f;
+
+        float x = startX;
+
         for (int id : handIds) {
             int displayId = blindMode ? 999 : id; // 999代表牌背
             CardWidget cw(font, displayId, {x, areaY - cardHeight / 2.f}, {cardWidth, cardHeight});
