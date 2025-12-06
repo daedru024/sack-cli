@@ -220,6 +220,11 @@ void runInRoomPage(
             state = State::GameStart;
             return;
         }
+        // added
+        else if(status == CHOOSE_RABBIT) {
+            state = State::Discard;
+            return;
+        }
 
 
         room = gameData.myRoom;

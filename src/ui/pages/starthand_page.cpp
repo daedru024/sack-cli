@@ -130,7 +130,8 @@ void runStartHandPage(
         int status = gameData.RecvPlay();
 
         // ⭕ Case 1：要去棄牌
-        if ((status == CHOOSE_RABBIT || gameData.PlayerID() == 0) && hosted) {
+        //if ((status == CHOOSE_RABBIT || gameData.PlayerID() == 0) && hosted) {
+        if ((status == CHOOSE_RABBIT) && hosted) {
             if(gameData.PlayerID() == 0) hosted = false;
             state = State::Discard;
             return;

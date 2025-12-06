@@ -111,7 +111,8 @@ void runDiscardPage(
     while (window.isOpen() && state == State::Discard)
     {
         int status = gameData.RecvPlay();
-        if (status == CHOOSE_RABBIT) { 
+        //if (status == CHOOSE_RABBIT) { 
+        if (gameData.removedCardId != -1) {
             gotDiscarded = true; 
         }
 
