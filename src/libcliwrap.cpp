@@ -162,7 +162,7 @@ int GamePlay::GetRoomInfo() {
         return 0;
     }
     if (strlen(buf) == 0)
-        return 0;
+        return CONN_CLOSED;
     lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string s;
@@ -329,13 +329,15 @@ int GamePlay::RecvPlay() {
     //ap {id}
     char buf[MAXLINE];
     time_t tm = time(NULL);
-    if(Recv(sockfd, buf) == -2) {
+    int n = Recv(sockfd, buf);
+    if(n == -2) {
         if(difftime(tm, lst_conn) >= 50) {
             Write(sockfd, "  ", 2);
             lst_conn = tm;
         }
         return -2;
     }
+    else if(n == 0) return CONN_CLOSED;
     lst_conn = tm;
     std::stringstream ss(buf);
     std::string tmp;
@@ -393,6 +395,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         }
         return {-2,{-2,-2}};
     }
+    else if(strlen(buf) == 0) return {CONN_CLOSED, {-1,-1}};
     lst_conn = tm;
     std::stringstream ss(buf);
     std::string tmp;

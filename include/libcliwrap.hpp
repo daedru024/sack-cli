@@ -23,6 +23,7 @@
 #define CHOOSE_RABBIT 1024
 #define AUTO_PLAYER 2048
 #define GAME_START 4096
+#define CONN_CLOSED -4096
 
 
 class GamePlay {
