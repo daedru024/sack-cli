@@ -21,12 +21,12 @@ namespace LobbyUI {
     constexpr float HEIGHT        = 600.f;
 
     // 標題
-    constexpr float TITLE_X       = 240.f;
+    constexpr float TITLE_X       = 260.f;
     constexpr float TITLE_Y       = 40.f;
 
     // 玩家列表面板
     constexpr float LIST_X        = 40.f;
-    constexpr float LIST_Y        = 150.f;
+    constexpr float LIST_Y        = 100.f;
     constexpr float LIST_W        = 420.f;
     constexpr float ROW_H         = 60.f;
     constexpr float LIST_V_PADDING = 20.f;
@@ -49,7 +49,7 @@ namespace LobbyUI {
     constexpr float COLOR_PICKER_Y = 250.f;
 
     constexpr float START_X       = 230.f;
-    constexpr float START_Y       = 480.f;
+    constexpr float START_Y       = 515.f;
     constexpr float START_W       = 260.f;
     constexpr float START_H       = 70.f;
 
@@ -204,12 +204,6 @@ void runInRoomPage(
     // ========================= LOOP ============================
     while (window.isOpen() && state == State::InRoom)
     {
-        // if (gameData.startFlag == GAME_START || gameData.startFlag == CHOOSE_RABBIT)
-        // {
-        //     std::cout << gameData.startFlag;
-        //     state = State::GameStart;
-        //     return;
-        // }
 
         // ------------ 同步 server 狀態 ------------
         int prevMyIndex = myIndex;
@@ -255,7 +249,7 @@ void runInRoomPage(
 
         serverReady.assign(n, false);
         for (int i = 0; i < n; i++)
-            serverReady[i] = (colorIndex[i] != -1);
+            serverReady[i] = (i == myIndex) ? localReady[i] : (colorIndex[i] != -1);
 
         if ((int)localReady.size() != n) {
             std::vector<bool> newLocal(n, false);

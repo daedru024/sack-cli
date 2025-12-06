@@ -2,8 +2,6 @@
 #include "ui/common/ui_common.hpp"
 #include "ui/common/ui_background.hpp"
 #include "ui/widgets/hand_panel.hpp"
-#include "ui/widgets/player_seat.hpp"
-#include "ui/layout/table_layout.hpp"
 #include "libcliwrap.hpp"
 #include "room.hpp"
 
@@ -48,23 +46,9 @@ void runDiscardPage(
         return;
     }
 
-    // 1. 初始化座位
-    std::vector<int> seatToPlayer(nPlayers);
-    for (int i = 0; i < nPlayers; i++) {
-        seatToPlayer[i] = (myIndex + i) % nPlayers;
-    }
-
-    auto seatPos = computeSeatPositions(nPlayers);
-    std::vector<PlayerSeat> seats(nPlayers);
-    for (int s = 0; s < nPlayers; ++s) {
-        int p = seatToPlayer[s];
-        bool isSelf = (p == myIndex);
-        seats[s].init(font, room.playerNames[p], room.colors[p], isSelf, seatPos[s]);
-    }
-
     // 2. 準備目標手牌 (盲選模式)
-    // 目標是下一位玩家 (座號 1)
-    int targetPId = seatToPlayer[1];
+    // 目標是下一位玩家
+    int targetPId = (myIndex + 1) % nPlayers;
     int targetColorIdx = room.colors[targetPId];
 
     HandPanel targetHand;
@@ -141,9 +125,9 @@ void runDiscardPage(
             }
         }
 
-        if (hasCommitted && gotDiscarded) {
+        // delete gotDiscarded
+        if (hasCommitted) {
             state = State::GameStart;
-            //reason = EndReason::None;
             return;
         }
 

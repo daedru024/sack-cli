@@ -19,7 +19,6 @@
 #define PRIVATE_FAIL 8
 #define TOO_MANY_PRIVATE 9
 
-#define GOT_RI 512
 #define CHOOSE_RABBIT 1024
 #define AUTO_PLAYER 2048
 #define GAME_START 4096

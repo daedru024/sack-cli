@@ -2,8 +2,6 @@
 #include "ui/common/ui_common.hpp"
 #include "ui/common/ui_background.hpp"
 #include "ui/widgets/hand_panel.hpp"
-#include "ui/widgets/player_seat.hpp"
-#include "ui/layout/table_layout.hpp"
 #include "libcliwrap.hpp"
 #include "room.hpp"
 
@@ -30,11 +28,6 @@ void runStartHandPage(
     sf::Font font;
     loadFontSafe(font);
 
-    // if (gameData.startFlag == CHOOSE_RABBIT) {
-    //     state = State::Discard;
-    //     return;
-    // }
-
     int roomIdx = currentRoomIndex;
     if (roomIdx < 0 || roomIdx >= (int)rooms.size()) {
         state = State::RoomInfo;
@@ -45,20 +38,6 @@ void runStartHandPage(
     int nPlayers = room.n_players;
     int myIndex  = gameData.PlayerID();
 
-    // // -------------------------
-    // // 建立座位資訊（不會變）
-    // // -------------------------
-    // std::vector<int> seatToPlayer(nPlayers);
-    // for (int i = 0; i < nPlayers; i++)
-    //     seatToPlayer[i] = (myIndex + i) % nPlayers;
-
-    // auto seatPos = computeSeatPositions(nPlayers);
-    // std::vector<PlayerSeat> seats(nPlayers);
-
-    // for (int s = 0; s < nPlayers; ++s) {
-    //     int p = seatToPlayer[s];
-    //     seats[s].init(font, room.playerNames[p], room.colors[p], (p == myIndex), seatPos[s]);
-    // }
 
     // -------------------------
     // 顯示初始手牌（扣掉 removedCardId）
@@ -77,26 +56,7 @@ void runStartHandPage(
     hand.setArea(60.f, 600.f, 430.f);
     hand.setHand(myHand, font);
 
-    // -------------------------
-    // UI: Won Stack (未開始使用)
-    // -------------------------
-    sf::RectangleShape wonStackBox;
-    wonStackBox.setSize({120.f, 90.f});
-    wonStackBox.setPosition(660.f, 470.f);
-    wonStackBox.setFillColor(sf::Color(80, 80, 80, 180));
-    wonStackBox.setOutlineColor(sf::Color::White);
-    wonStackBox.setOutlineThickness(3);
-
-    sf::Text wonLabel = mkCenterText(font, "Won\nStack", 20, sf::Color::White);
-    wonLabel.setOutlineColor(sf::Color::Black);
-    wonLabel.setOutlineThickness(2);
-    {
-        auto b = wonLabel.getLocalBounds();
-        float cx = wonStackBox.getPosition().x + wonStackBox.getSize().x / 2;
-        float cy = wonStackBox.getPosition().y + wonStackBox.getSize().y / 2;
-        wonLabel.setOrigin(b.left + b.width / 2, b.top + b.height / 2);
-        wonLabel.setPosition(cx, cy);
-    }
+    
 
     // -------------------------
     // Title
@@ -143,12 +103,10 @@ void runStartHandPage(
             return;
         }
         //added
-        if (gameData.PlayerID() == 0) {
-            state = State::Game;
-            return;
-        }
-
-        // 其餘 status = -1 / AUTO_PLAYER → 忽略即可
+        // if (gameData.PlayerID() == 0) {
+        //     state = State::Game;
+        //     return;
+        // }
 
         // -------------------------
         // UI 事件處理
@@ -172,8 +130,6 @@ void runStartHandPage(
         title.draw(window);
         hand.draw(window);
 
-        window.draw(wonStackBox);
-        window.draw(wonLabel);
 
         window.draw(waitMsg);
 
