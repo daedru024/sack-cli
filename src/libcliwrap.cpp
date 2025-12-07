@@ -63,7 +63,7 @@ int GamePlay::ChooseColor(int c) {
     Write(sockfd, ss.str().c_str(), ss.str().length());
     //get broadcasted room info
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
     if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
         return GAME_START;
@@ -79,7 +79,7 @@ void GamePlay::GetRoomInfo(std::vector<Room>& rooms) {
     printf("Getting room info\n");
 #endif  
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string tmp;
@@ -186,7 +186,7 @@ int GamePlay::JoinRoom(int rid, std::string Pwd) {
     int PIN = stoi(Pwd);
     Join(sockfd, rid, UserName.c_str(), PIN);
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while( Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
     std::stringstream ss(buf);
     std::string rmerr;
@@ -215,7 +215,7 @@ int GamePlay::LockRoom() {
     Lock(sockfd);
     //get broadcasted room info
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while(Recv(sockfd, buf) == -2);
     lst_conn = time(NULL);
     GetRoomInfo(roomID, myRoom, buf);
     if(myRoom.locked == false) {
@@ -237,7 +237,7 @@ int GamePlay::MakePrivate(std::string Pwd) {
     Privt(sockfd, PIN);
     //get broadcasted room info
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while(Recv(sockfd, buf) == -2) ;
     if(buf[0] == 'r' && buf[1] == 'e') {
         int code = buf[3] - '0'; // modified
         if (code == 6) return TOO_MANY_PRIVATE; // modified
@@ -292,7 +292,7 @@ int GamePlay::UnlockRoom() {
     Write(sockfd, "2", 1);
     //get broadcasted room info
     char buf[MAXLINE];
-    Recv(sockfd, buf);
+    while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
     GetRoomInfo(roomID, myRoom, buf);
     if(myRoom.locked == true) 

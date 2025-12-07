@@ -194,6 +194,7 @@ void runPlayPhasePage(
         }
         else if (status == AUTO_PLAYER) {
             broadcast.setString("Auto player played a card");
+            // maybe "someone left the room"? 
         }
 
         // -------------------
@@ -243,7 +244,8 @@ void runPlayPhasePage(
 
             hand.handleClick(e, window);
 
-            if (playBtn.clicked(e, window)) {
+            //if (playBtn.clicked(e, window)) {
+            if (playBtn.clicked(e, window) && isMyTurn) {
                 int cardId = hand.selectedCardId();
                 if (cardId != -1) {
                     if (gameData.Play(cardId)) {
