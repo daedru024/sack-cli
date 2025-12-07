@@ -405,6 +405,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     if(tmp == "ap") {
         //auto player
         //TODO
+        myRoom.playerNames[pID] += " (auto)";
         return {AUTO_PLAYER, {-1,-1}};
     }
     int amount, npID;
