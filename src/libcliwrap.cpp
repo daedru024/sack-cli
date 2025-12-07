@@ -346,6 +346,7 @@ int GamePlay::RecvPlay() {
     if(tmp == "ap") {
         //autoplay or end connection
         //TODO
+        myRoom.playerNames[pID] += " (auto)";
         return AUTO_PLAYER;
     }
     else if(tmp == "ri") {
