@@ -35,8 +35,10 @@ public:
     int removedCardId = -1;
     //int startFlag = 0;
     std::vector<int> MakeUp, CardsPlayed;
+    std::stringstream buff;
     GamePlay() {std::srand(time(NULL));}
     GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
+    GamePlay& operator=(const GamePlay &other);
     
     /**** VARIABLES ****/
     /*******************/
@@ -112,11 +114,11 @@ public:
     // bid
     void SendBid(int amount);
     //TODO: get score
-};
 
-/**** HELPER FUNCTIONS ****/
-/**************************/
-bool ss_empty(const std::stringstream& ss);
+    /**** HELPER FUNCTIONS ****/
+    /**************************/
+    bool ss_empty(const std::stringstream& ss);
+};
 
 
 #endif

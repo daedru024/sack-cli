@@ -1,6 +1,14 @@
 #include "libcliwrap.hpp"
 
 #define DEBUG
+#define ENDNOW
+
+GamePlay& GamePlay::operator=(const GamePlay &other) {
+    sockfd = other.sockfd;
+    UserName = other.UserName;
+    servip = other.servip;
+    return *this;
+}
 
 /**** CONNECTION ****/
 /********************/
@@ -139,7 +147,7 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 #endif
     room.isPrivate = (room.password != "10000");
     room.password = room.isPrivate ? room.password : "";
-    if(!ss_empty(ss)) {
+    while(!ss_empty(ss)) {
         ss >> tmp;
         if(tmp == "GAMESTART") return GameStart();
     }
@@ -217,7 +225,8 @@ int GamePlay::LockRoom() {
     char buf[MAXLINE];
     while(Recv(sockfd, buf) == -2);
     lst_conn = time(NULL);
-    GetRoomInfo(roomID, myRoom, buf);
+    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
+        return GAME_START;
     if(myRoom.locked == false) {
         if(myRoom.n_players < 3)
             return NOT_ENOUGH_PLAYERS;
@@ -329,20 +338,30 @@ int GamePlay::RecvPlay() {
     //ap {id}
     char buf[MAXLINE];
     time_t tm = time(NULL);
-    int n = Recv(sockfd, buf);
-    if(n == -2) {
-        if(difftime(tm, lst_conn) >= 50) {
-            Write(sockfd, "  ", 2);
-            lst_conn = tm;
+#ifdef DEBUG
+    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
+#endif
+    if(ss_empty(buff)) {
+        int n = Recv(sockfd, buf);
+        if(n == -2) {
+            if(difftime(tm, lst_conn) >= 50) {
+                Write(sockfd, "  ", 2);
+                lst_conn = tm;
+            }
+            return -2;
         }
-        return -2;
+        else if(n == 0) {
+#ifdef ENDNOW
+            exit(0);
+#endif
+            return CONN_CLOSED;
+        }
+        lst_conn = tm;
+        buff = std::stringstream(buf);
     }
-    else if(n == 0) return CONN_CLOSED;
-    lst_conn = tm;
-    std::stringstream ss(buf);
     std::string tmp;
     int pID, cd;
-    ss >> tmp >> pID;
+    buff >> tmp >> pID;
     if(tmp == "ap") {
         //autoplay or end connection
         //TODO
@@ -359,7 +378,8 @@ int GamePlay::RecvPlay() {
     else if(tmp == "START_ROUND") {
         return PlayNext();
     }
-    if(!ss_empty(ss)) ss >> cd;
+    else if(tmp != "c") return -2;
+    if(!ss_empty(buff)) buff >> cd;
     //not pID's round, ignore
     if(cd == 0 || cd == -1) {
         if(pID == playerID) {
@@ -389,19 +409,29 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //ap {PlayerID}
     char buf[MAXLINE];
     time_t tm = time(NULL);
-    if(Recv(sockfd, buf) == -2) {
-        if(difftime(tm, lst_conn) >= 50) {
-            Write(sockfd, "  ", 2);
-            lst_conn = tm;
+#ifdef DEBUG
+    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
+#endif
+    if(ss_empty(buff)) {
+        if(Recv(sockfd, buf) == -2) {
+            if(difftime(tm, lst_conn) >= 50) {
+                Write(sockfd, "  ", 2);
+                lst_conn = tm;
+            }
+            return {-2,{-2,-2}};
         }
-        return {-2,{-2,-2}};
+        else if(strlen(buf) == 0) {
+#ifdef ENDNOW
+            exit(0);
+#endif
+            return {CONN_CLOSED, {-1,-1}};
+        }
+        lst_conn = tm;
+        buff = std::stringstream(buf);
     }
-    else if(strlen(buf) == 0) return {CONN_CLOSED, {-1,-1}};
-    lst_conn = tm;
-    std::stringstream ss(buf);
     std::string tmp;
     int pID;
-    ss >> tmp >> pID;
+    buff >> tmp >> pID;
     if(tmp == "ap") {
         //auto player
         //TODO
@@ -410,12 +440,12 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     }
     int amount, npID;
     if(tmp == "b") {
-        ss >> amount >> npID;
+        buff >> amount >> npID;
         if(npID>=0) {
             if(amount>0) lst_val = amount;
             else if(amount == 0) {
                 //abandoned bid
-                ss >> CardsPlayed[played];
+                buff >> CardsPlayed[played];
                 if(pID == playerID) {
                     rem_money += MakeUp[played];
                     lst_bid = 0;
@@ -428,7 +458,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         return {npID, {pID, amount}};
     }
     if(tmp == "be") {
-        ss >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
+        buff >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
         std::pair<int,std::pair<int,int>> ret;
         if(amount <= 0) ret = {npID, {-1, -1}};
         else {
@@ -444,17 +474,15 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         played = 0;
         return ret;
     }
-    return {0,{0,0}};
+    return {-2,{-2,-2}};
 }
 
 // bid
 void GamePlay::SendBid(int amount) {
-    //if(amount>rem_money || amount<lst_val) return;
-    // 考慮棄標 (amount = 0)
     if (amount != 0 && (amount > rem_money || amount < lst_val)) return;
     Bid(sockfd, playerID, amount, rem_money);
 }
 
-bool ss_empty(const std::stringstream& ss) { 
+bool GamePlay::ss_empty(const std::stringstream& ss) { 
     return(ss.rdbuf()->in_avail() == 0); 
 }
