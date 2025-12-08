@@ -72,7 +72,7 @@ void runDiscardPage(
     }
 
     // 3. UI 元件
-    string titleStr = room.name + " - Discard Phase (Pick Next Player's Card)";
+    string titleStr = "Discard Phase (Pick Next Player's Card)";
     Label title(&font, titleStr, 400.f, 40.f, 26,
                 sf::Color::White, sf::Color::Black, 4);
     title.centerText();
@@ -167,10 +167,11 @@ void runDiscardPage(
         {
             std::ostringstream oss;
             oss << "Time left: " << (int)remain << "s";
-            sf::Text t = mkCenterText(font, oss.str(), 22, sf::Color::White);
+            sf::Text t = mkCenterText(font, oss.str(), 26, sf::Color::White);
             t.setOutlineColor(sf::Color::Black);
             t.setOutlineThickness(2.f);
-            t.setPosition(400.f, 90.f);
+            t.setPosition(400.f, 580.f);
+            t.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
             window.draw(t);
         }
 

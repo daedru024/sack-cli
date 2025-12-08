@@ -71,10 +71,10 @@ void runStartHandPage(
     sf::Text waitMsg;
     waitMsg.setFont(font);
     waitMsg.setString("Waiting for other players to discard...");
-    waitMsg.setCharacterSize(22);
+    waitMsg.setCharacterSize(32);
     waitMsg.setFillColor(sf::Color::White);
     waitMsg.setOutlineColor(sf::Color::Black);
-    waitMsg.setOutlineThickness(2);
+    waitMsg.setOutlineThickness(3);
     waitMsg.setPosition(400 - waitMsg.getLocalBounds().width / 2, 90);
 
     bool hosted = true;

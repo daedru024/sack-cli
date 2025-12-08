@@ -89,23 +89,23 @@ void runPlayPhasePage(
     sf::RectangleShape wonStackBg;
     wonStackBg.setSize({120.f, 90.f});
     wonStackBg.setPosition(660.f, 470.f);
-    wonStackBg.setFillColor(sf::Color(80, 80, 80, 180)); // 半透明灰底
+    wonStackBg.setFillColor(sf::Color(80, 80, 80, 180));
     wonStackBg.setOutlineThickness(0); 
 
     // 盒子的邊框 
     sf::RectangleShape wonStackFrame = wonStackBg;
-    wonStackFrame.setFillColor(sf::Color::Transparent); // 透明中間
+    wonStackFrame.setFillColor(sf::Color::Transparent);
     wonStackFrame.setOutlineColor(sf::Color::White);
     wonStackFrame.setOutlineThickness(3);
 
-    // 定義贏得卡牌的視覺樣式 (淺黃色)
+    // 贏得卡牌的視覺樣式 (淺黃色)
     sf::RectangleShape wonCardRect;
     wonCardRect.setSize({70.f, 100.f}); 
     wonCardRect.setFillColor(sf::Color(255, 245, 180)); 
     wonCardRect.setOutlineColor(sf::Color::Black);
     wonCardRect.setOutlineThickness(2);
 
-    // 定義數量文字 (例如 "x 4")
+    // 數量文字 (例如 "x 4")
     sf::Text countText;
     countText.setFont(font);
     countText.setCharacterSize(24);
@@ -135,8 +135,6 @@ void runPlayPhasePage(
     broadcast.setFillColor(sf::Color::Black);
     broadcast.setOutlineColor(sf::Color::White);
     broadcast.setOutlineThickness(4);
-    // broadcast.setPosition(275, 70); 
-    // updateBroadcast("");
 
     auto updateBroadcast = [&](std::string msg) {
         broadcast.setString(toUtf32(msg));
@@ -284,7 +282,8 @@ void runPlayPhasePage(
                         s.revealed = false;
                         s.rect.setFillColor(sf::Color(50, 50, 50));
                     }
-                    updateBroadcast("New Round Start");
+                    lastActionMsg = "New Round Start";
+                    updateBroadcast(lastActionMsg);
                     bidPanel.setVisible(false);
                     hasSubmitted = false;
                 }
@@ -431,7 +430,7 @@ void runPlayPhasePage(
             // 3. 顯示 "x N" 文字
             countText.setString("x " + std::to_string(wonRoundsCount));
             
-            countText.setPosition(baseX + 20.f, baseY - 30.f); 
+            countText.setPosition(baseX + 20.f, baseY - 50.f); 
             window.draw(countText);
         }
 

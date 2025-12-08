@@ -60,7 +60,7 @@ namespace LobbyUI {
     constexpr float READY_STATE_Y = 500.f;
 
     constexpr float KICK_HINT_X   = 400.f;
-    constexpr float KICK_HINT_Y   = 560.f;
+    constexpr float KICK_HINT_Y   = 570.f;
 
     constexpr float KICK_TIME     = 30.f;
 }
@@ -466,10 +466,11 @@ void runInRoomPage(
 
             sf::Text idleText = mkCenter(
                 font, "Auto-kick in: " + std::to_string((int)remain) + "s",
-                22, sf::Color::Yellow);
+                26, sf::Color::White);
             idleText.setOutlineThickness(2);
             idleText.setOutlineColor(sf::Color::Black);
             idleText.setPosition(KICK_HINT_X, KICK_HINT_Y);
+            idleText.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
             window.draw(idleText);
         }
 
