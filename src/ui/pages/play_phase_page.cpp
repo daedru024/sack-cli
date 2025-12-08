@@ -85,21 +85,42 @@ void runPlayPhasePage(
     bidPanel.init(font, 130.f, 320.f); 
     bidPanel.setVisible(false);
 
-    // Won Stack & Labels
-    sf::RectangleShape wonStackBox;
-    wonStackBox.setSize({120.f, 90.f});
-    wonStackBox.setPosition(660.f, 470.f);
-    wonStackBox.setFillColor(sf::Color(80, 80, 80, 180));
-    wonStackBox.setOutlineColor(sf::Color::White);
-    wonStackBox.setOutlineThickness(3);
+    // 盒子的背景 (底層)
+    sf::RectangleShape wonStackBg;
+    wonStackBg.setSize({120.f, 90.f});
+    wonStackBg.setPosition(660.f, 470.f);
+    wonStackBg.setFillColor(sf::Color(80, 80, 80, 180)); // 半透明灰底
+    wonStackBg.setOutlineThickness(0); 
 
+    // 盒子的邊框 
+    sf::RectangleShape wonStackFrame = wonStackBg;
+    wonStackFrame.setFillColor(sf::Color::Transparent); // 透明中間
+    wonStackFrame.setOutlineColor(sf::Color::White);
+    wonStackFrame.setOutlineThickness(3);
+
+    // 定義贏得卡牌的視覺樣式 (淺黃色)
+    sf::RectangleShape wonCardRect;
+    wonCardRect.setSize({70.f, 100.f}); 
+    wonCardRect.setFillColor(sf::Color(255, 245, 180)); 
+    wonCardRect.setOutlineColor(sf::Color::Black);
+    wonCardRect.setOutlineThickness(2);
+
+    // 定義數量文字 (例如 "x 4")
+    sf::Text countText;
+    countText.setFont(font);
+    countText.setCharacterSize(24);
+    countText.setFillColor(sf::Color::Cyan); // 亮青色
+    countText.setOutlineColor(sf::Color::Black);
+    countText.setOutlineThickness(2);
+
+    // 文字 Label
     sf::Text wonLabel = mkCenterText(font, "Won\nStack", 20, sf::Color::White);
     wonLabel.setOutlineColor(sf::Color::Black);
     wonLabel.setOutlineThickness(2);
     {
         auto b = wonLabel.getLocalBounds();
-        float cx = wonStackBox.getPosition().x + wonStackBox.getSize().x / 2;
-        float cy = wonStackBox.getPosition().y + wonStackBox.getSize().y / 2;
+        float cx = wonStackBg.getPosition().x + wonStackBg.getSize().x / 2;
+        float cy = wonStackBg.getPosition().y + wonStackBg.getSize().y / 2;
         wonLabel.setOrigin(b.left + b.width / 2, b.top + b.height / 2);
         wonLabel.setPosition(cx, cy);
     }
@@ -114,8 +135,22 @@ void runPlayPhasePage(
     broadcast.setFillColor(sf::Color::Black);
     broadcast.setOutlineColor(sf::Color::White);
     broadcast.setOutlineThickness(4);
-    broadcast.setPosition(275, 70); 
-    broadcast.setString("");
+    // broadcast.setPosition(275, 70); 
+    // updateBroadcast("");
+
+    auto updateBroadcast = [&](std::string msg) {
+        broadcast.setString(toUtf32(msg));
+
+        sf::FloatRect b = broadcast.getLocalBounds();
+
+        broadcast.setOrigin(b.left + b.width / 2.0f, b.top + b.height / 2.0f);
+
+        broadcast.setPosition(400.0f, 100.0f);
+    };
+
+    updateBroadcast("");
+
+    std::string lastActionMsg = "";
 
     sf::Clock stepTimer;
     sf::Text moneyText = mkCenterText(font, "$", 28, sf::Color::Yellow);
@@ -135,12 +170,18 @@ void runPlayPhasePage(
 
     bool isBiddingPhase = false;
     int currentHighBid = 0;
+    int currentHighBidder = -1;
 
     // 標記本回合是否已送出bid
     bool hasSubmitted = false;
 
     // Track how many cards have been revealed by passing
     int revealedCount = 0;
+
+    // won rounds
+    int wonRoundsCount = 0;
+
+
 
     // Main Loop
     while (window.isOpen() && state == State::Game)
@@ -161,22 +202,20 @@ void runPlayPhasePage(
                     slots[playedCount].rect.setFillColor(pColor);
                     playedCount++;
                 }
-                broadcast.setString(room.playerNames[p] + " played a card");
+                lastActionMsg = room.playerNames[p] + " played a card";
                 stepTimer.restart();
                 currentTurnPlayer = (p + 1) % nPlayers;
 
                 if (playedCount == nPlayers) {
                     isBiddingPhase = true;
-                    broadcast.setString("Bidding Phase Start");
+                    lastActionMsg = "Bidding Phase Start";
                     playBtn.setDisabled(true); 
                     currentHighBid = 0; 
                     hasSubmitted = false;
                     revealedCount = 0;
                 }
             }
-            else if (status == AUTO_PLAYER) {
-                broadcast.setString("Auto player played");
-            }
+            
         }
         else 
         {
@@ -187,7 +226,7 @@ void runPlayPhasePage(
             int amount     = result.second.second;
             int revealedId = gameData.CardsPlayed[gameData.PlayedThisRound()-1];
 
-            if (nextPlayer != -2 && nextPlayer != CONN_CLOSED && nextPlayer != AUTO_PLAYER) {
+            if (nextPlayer != -2 && nextPlayer != CONN_CLOSED) {
                 stepTimer.restart();
 
                 // 如果換人了，代表我的操作(如果有的話)已經被 Server 確認，可以重置提交狀態
@@ -200,11 +239,12 @@ void runPlayPhasePage(
                 if (bidder >= 0) {
                     if (amount > 0) {
                         currentHighBid = amount;
-                        broadcast.setString(room.playerNames[bidder] + " bid $" + std::to_string(amount));
+                        currentHighBidder = bidder;
+                        lastActionMsg = room.playerNames[bidder] + " bid $" + std::to_string(amount);
                     } else {
-                        broadcast.setString(room.playerNames[bidder] + " passed");
+                        lastActionMsg = room.playerNames[bidder] + " passed";
 
-                        // Reveal the leftmost unrevealed card (slots[revealedCount])
+                        // Reveal the leftmost unrevealed card
                         if (revealedId != -1 && revealedCount < nPlayers) {
                             CardSlot& slot = slots[revealedCount];
                             slot.revealed = true;
@@ -230,16 +270,21 @@ void runPlayPhasePage(
                 }
 
                 if (room.inGame % 2 != 0) {
+                    if (currentHighBidder == myIndex) {
+                        wonRoundsCount++;
+                    }
+                    currentHighBidder = -1;
                     isBiddingPhase = false;
                     playedCount = 0;
                     currentHighBid = 0;
                     revealedCount = 0;
+
                     for (auto& s : slots) {
                         s.filled = false;
                         s.revealed = false;
                         s.rect.setFillColor(sf::Color(50, 50, 50));
                     }
-                    broadcast.setString("New Round Start");
+                    updateBroadcast("New Round Start");
                     bidPanel.setVisible(false);
                     hasSubmitted = false;
                 }
@@ -255,12 +300,21 @@ void runPlayPhasePage(
             if (isMyTurn && !hasSubmitted) {
                 bidPanel.setVisible(true);
                 bidPanel.setRange(currentHighBid + 1, gameData.Money());
-                broadcast.setString("Your turn to Bid");
+                updateBroadcast(lastActionMsg + "\nYour turn to Bid");
             } else {
                 bidPanel.setVisible(false);
+                updateBroadcast(lastActionMsg);
             }
-        } else {
+        }
+        else {
             bidPanel.setVisible(false);
+            if(isMyTurn){
+                updateBroadcast("Your turn play card");
+            }
+            else{
+                updateBroadcast(lastActionMsg);
+            }
+
         }
 
         if (isMyTurn) {
@@ -274,6 +328,7 @@ void runPlayPhasePage(
             timerText.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
         } else {
             timerText.setString("");
+
         }
 
         moneyText.setString("Money: $" + std::to_string(gameData.Money()));
@@ -301,7 +356,7 @@ void runPlayPhasePage(
                     if (cardId != -1) {
                         if (gameData.Play(cardId)) {
                             playBtn.setDisabled(true);
-                            broadcast.setString("You played " + std::to_string(cardId));
+                            lastActionMsg = "You played card " + std::to_string(cardId);
                             auto it = std::find(myHand.begin(), myHand.end(), cardId);
                             if (it != myHand.end()) myHand.erase(it);
                             hand.setHand(myHand, font);
@@ -359,7 +414,34 @@ void runPlayPhasePage(
         window.draw(broadcast);
         if (isMyTurn) window.draw(timerText);
         window.draw(moneyText);
-        window.draw(wonStackBox);
+        
+
+        window.draw(wonStackBg); 
+
+        // 畫卡牌 (如果有贏過)
+        if (wonRoundsCount > 0) {
+            
+            float baseX = 660.f + (120.f - 70.f)/2.f; // 盒子居中 X
+            float baseY = 460.f; 
+
+
+            wonCardRect.setPosition(baseX , baseY);
+            window.draw(wonCardRect);
+
+            // 3. 顯示 "x N" 文字
+            countText.setString("x " + std::to_string(wonRoundsCount));
+            
+            countText.setPosition(baseX + 20.f, baseY - 30.f); 
+            window.draw(countText);
+        }
+
+        //window.draw(wonLabel);
+   
+        sf::RectangleShape border = wonStackBg;
+        border.setFillColor(sf::Color::Transparent);
+        window.draw(border);
+
+        window.draw(wonStackFrame);
         window.draw(wonLabel);
 
         window.display();
