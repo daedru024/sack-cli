@@ -10,6 +10,7 @@ public:
     std::vector<int>         handIds;     // cardId (0..9)
     std::vector<CardWidget>  cards;       // 對應視覺物件
     int                      selectedIdx = -1;
+    bool blindMode = false; //牌背模式
 
     // 底部區域 (預設 800x600 底部 1/3)
     float areaLeft   = 80.f;
@@ -22,19 +23,37 @@ public:
         areaY     = centerY;
     }
 
-    // 設定手牌，會依 cardValue 排序
+    // 設定手牌，會依 cardValue 排序 (除非是盲選模式，排序沒意義)
     void setHand(const std::vector<int>& ids, const sf::Font& font) {
         handIds = ids;
-        std::sort(handIds.begin(), handIds.end(),
-                  [](int a, int b) {
-                      return cardValue(a) < cardValue(b);
-                  });
+        if (!blindMode) { // 只有非盲選才需要排序
+            std::sort(handIds.begin(), handIds.end(),
+                      [](int a, int b) {
+                          return cardValue(a) < cardValue(b);
+                      });
+        }
         rebuildCards(font);
+    }
+
+    // 設定是否為盲選模式 (顯示牌背)
+    void setBlindMode(bool blind) {
+        blindMode = blind;
     }
 
     int selectedCardId() const {
         if (selectedIdx < 0 || selectedIdx >= (int)handIds.size()) return -1;
         return handIds[selectedIdx];
+    }
+
+    int selectedIndex() const {
+        return selectedIdx;
+    }
+
+    void clearSelection() {
+        if (selectedIdx != -1) {
+            cards[selectedIdx].setSelected(false);
+        }
+        selectedIdx = -1;
     }
 
     void handleClick(const sf::Event& e, sf::RenderWindow& win) {
@@ -53,14 +72,18 @@ public:
             }
         }
 
-        if (newSel == selectedIdx) return;
+        if(newSel == -1) return;
 
-        if (selectedIdx != -1)
+        if (newSel == selectedIdx){
             cards[selectedIdx].setSelected(false);
-
-        selectedIdx = newSel;
-        if (selectedIdx != -1)
+            selectedIdx = -1;
+        }
+        else{
+            if (selectedIdx != -1)
+                cards[selectedIdx].setSelected(false);
+            selectedIdx = newSel;
             cards[selectedIdx].setSelected(true);
+        }
     }
 
     void draw(sf::RenderWindow& win) const {
@@ -75,17 +98,34 @@ private:
         float totalWidth = areaRight - areaLeft;
         int   n          = (int)handIds.size();
 
-        float cardWidth  = std::min(80.f, totalWidth / (n + 0.5f));
+        float cardWidth  = 50.f;
         float cardHeight = cardWidth * 1.4f;
-        float spacing    = (totalWidth - n * cardWidth) / (n - 1 <= 0 ? 1 : (n - 1));
+        // float spacing    = (totalWidth - n * cardWidth) / (n - 1 <= 0 ? 1 : (n - 1));
 
-        float x = areaLeft;
+        // float x = areaLeft;
+
+        float spacing = 10.f;
+
+        // 計算實際內容需要的總寬度
+        float contentW = n * cardWidth + (n - 1) * spacing;
+
+        // 若超出範圍 (雖然10張50寬不太可能超)，則自動縮小間距以避免超出邊界
+        if (contentW > totalWidth && n > 1) {
+            spacing = (totalWidth - n * cardWidth) / (n - 1);
+            contentW = totalWidth;
+        }
+
+        float startX = areaLeft + (totalWidth - contentW) / 2.f;
+
+        float x = startX;
+
         for (int id : handIds) {
-            CardWidget cw(font, id, {x, areaY - cardHeight / 2.f}, {cardWidth, cardHeight});
+            int displayId = blindMode ? 999 : id; // 999代表牌背
+            CardWidget cw(font, displayId, {x, areaY - cardHeight / 2.f}, {cardWidth, cardHeight});
             cards.push_back(cw);
             x += cardWidth + spacing;
         }
-
+        
         // reset selection
         selectedIdx = -1;
     }

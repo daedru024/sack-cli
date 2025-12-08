@@ -29,6 +29,9 @@
 #include "ui/pages/room_info_page.hpp"
 #include "ui/pages/rules_page.hpp"
 #include "ui/pages/username_page.hpp"
+#include "ui/pages/starthand_page.hpp"
+#include "ui/pages/discard_page.hpp"
+#include "ui/pages/play_phase_page.hpp"
 
 // =====================
 // Widgets

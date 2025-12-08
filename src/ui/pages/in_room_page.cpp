@@ -21,12 +21,12 @@ namespace LobbyUI {
     constexpr float HEIGHT        = 600.f;
 
     // 標題
-    constexpr float TITLE_X       = 240.f;
+    constexpr float TITLE_X       = 260.f;
     constexpr float TITLE_Y       = 40.f;
 
     // 玩家列表面板
     constexpr float LIST_X        = 40.f;
-    constexpr float LIST_Y        = 150.f;
+    constexpr float LIST_Y        = 100.f;
     constexpr float LIST_W        = 420.f;
     constexpr float ROW_H         = 60.f;
     constexpr float LIST_V_PADDING = 20.f;
@@ -49,7 +49,7 @@ namespace LobbyUI {
     constexpr float COLOR_PICKER_Y = 250.f;
 
     constexpr float START_X       = 230.f;
-    constexpr float START_Y       = 480.f;
+    constexpr float START_Y       = 515.f;
     constexpr float START_W       = 260.f;
     constexpr float START_H       = 70.f;
 
@@ -60,7 +60,7 @@ namespace LobbyUI {
     constexpr float READY_STATE_Y = 500.f;
 
     constexpr float KICK_HINT_X   = 400.f;
-    constexpr float KICK_HINT_Y   = 560.f;
+    constexpr float KICK_HINT_Y   = 570.f;
 
     constexpr float KICK_TIME     = 30.f;
 }
@@ -141,8 +141,9 @@ void runInRoomPage(
     std::vector<bool> localReady(n, false);
 
     for (int i = 0; i < n; i++)
-        serverReady[i] = (colorIndex[i] != -1);
-    localReady[myIndex] = serverReady[myIndex];
+        if (localReady[i])
+            serverReady[i] = true;
+    localReady[myIndex] = localReady[myIndex];
 
     bool isHost = (myIndex == 0);
 
@@ -203,14 +204,22 @@ void runInRoomPage(
     // ========================= LOOP ============================
     while (window.isOpen() && state == State::InRoom)
     {
+
         // ------------ 同步 server 狀態 ------------
         int prevMyIndex = myIndex;
 
         int status = gameData.GetRoomInfo();
         if (status == GAME_START) {
+            // 一收到 GameStart → 進入起始手牌階段
             state = State::GameStart;
             return;
         }
+        // added
+        else if(status == CHOOSE_RABBIT) {
+            state = State::Discard;
+            return;
+        }
+
 
         room = gameData.myRoom;
         n    = room.n_players;
@@ -229,10 +238,18 @@ void runInRoomPage(
         }
 
         // 更新 Ready 狀態
-        colorIndex = room.colors;
+        // 不覆蓋自己正在選的顏色
+        for (int i = 0; i < n; i++) {
+            if (i == myIndex && !localReady[myIndex]) {
+                // 選色中 → 保留 local 的 selector 顏色
+                continue;
+            }
+            colorIndex[i] = room.colors[i];
+        }
+
         serverReady.assign(n, false);
         for (int i = 0; i < n; i++)
-            serverReady[i] = (colorIndex[i] != -1);
+            serverReady[i] = (i == myIndex) ? localReady[i] : (colorIndex[i] != -1);
 
         if ((int)localReady.size() != n) {
             std::vector<bool> newLocal(n, false);
@@ -313,6 +330,13 @@ void runInRoomPage(
                 // ▶ server stat = 4, 自動送 GAMESTART
                 gameData.LockRoom();
                 std::cout << "[Host] LOCK & START sent.\n";
+
+                // if (gameData.startFlag == GAME_START || gameData.startFlag == CHOOSE_RABBIT)
+                // {
+                //     std::cout << "[Instant Check] StartFlag: " << gameData.startFlag << std::endl;
+                //     state = State::GameStart;
+                //     return;
+                // }
             }
         }
 
@@ -442,10 +466,11 @@ void runInRoomPage(
 
             sf::Text idleText = mkCenter(
                 font, "Auto-kick in: " + std::to_string((int)remain) + "s",
-                22, sf::Color::Yellow);
+                26, sf::Color::White);
             idleText.setOutlineThickness(2);
             idleText.setOutlineColor(sf::Color::Black);
             idleText.setPosition(KICK_HINT_X, KICK_HINT_Y);
+            idleText.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
             window.draw(idleText);
         }
 

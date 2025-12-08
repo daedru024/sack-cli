@@ -21,7 +21,6 @@ inline CardType getCardType(int cardId) {
 }
 
 inline sf::Color cardFillColor(CardType t) {
-    // 方案 A:
     // 普通貓: 淺黃色 (255,240,180)
     // 大狗:   深紅色 (200,50,50)
     // 小狗:   橘色   (255,150,0)

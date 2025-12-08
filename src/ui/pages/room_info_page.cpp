@@ -284,10 +284,11 @@ void runRoomInfoPage(
         // ---- Timer ----
         std::ostringstream oss;
         oss << "Time left: " << (int)remain << "s";
-        sf::Text timerTx = mkCenterText(font, oss.str(), 24, sf::Color::White);
+        sf::Text timerTx = mkCenterText(font, oss.str(), 26, sf::Color::White);
         timerTx.setOutlineColor(sf::Color::Black);
         timerTx.setOutlineThickness(2.f);
         timerTx.setPosition(LIST_LEFT_X + ROOM_BTN_W / 2.f, TIMER_Y);
+        timerTx.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
         window.draw(timerTx);
 
         // ---- 房間清單 ----
