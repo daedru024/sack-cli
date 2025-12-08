@@ -449,21 +449,12 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
 
 // bid
 void GamePlay::SendBid(int amount) {
-    if(amount>rem_money || amount<lst_val) return;
+    //if(amount>rem_money || amount<lst_val) return;
+    // 考慮棄標 (amount = 0)
+    if (amount != 0 && (amount > rem_money || amount < lst_val)) return;
     Bid(sockfd, playerID, amount, rem_money);
 }
 
 bool ss_empty(const std::stringstream& ss) { 
     return(ss.rdbuf()->in_avail() == 0); 
 }
-
-// // modified
-// int GamePlay::StartRequest() {
-// #ifdef DEBUG
-//     printf("Sending start request\n");
-// #endif
-
-//     Write(sockfd, "  ", 2);
-
-//     return 0;
-// }
