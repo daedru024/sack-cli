@@ -73,8 +73,8 @@ int GamePlay::ChooseColor(int c) {
     char buf[MAXLINE];
     while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
-    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
-        return GAME_START;
+    if((c = GetRoomInfo(roomID, myRoom, buf)) != 0) 
+        return c;
     if(myRoom.colors[playerID] != c) 
         return -1;
     return 0;
@@ -278,6 +278,7 @@ int GamePlay::GameStart() {
     lst_conn = time(NULL);
     CardsPlayed = std::vector<int>(myRoom.n_players, -1);
     MakeUp = std::vector<int>(myRoom.n_players);
+    Results = Scores(myRoom.n_players);
     switch(myRoom.n_players) {
     case 3:
         MakeUp = {3, 6, 0};
@@ -446,6 +447,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
             else if(amount == 0) {
                 //abandoned bid
                 buff >> CardsPlayed[played];
+                Results.stks[Round()-1][played] = CardsPlayed[played];
                 if(pID == playerID) {
                     rem_money += MakeUp[played];
                     lst_bid = 0;
@@ -459,6 +461,8 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     }
     if(tmp == "be") {
         buff >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
+        Results.stks[Round()-1][myRoom.n_players-1] = CardsPlayed[myRoom.n_players-1];
+        Results.winner[Round()-1] = pID;
         std::pair<int,std::pair<int,int>> ret;
         if(amount <= 0) ret = {npID, {-1, -1}};
         else {
@@ -481,6 +485,12 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
 void GamePlay::SendBid(int amount) {
     if (amount != 0 && (amount > rem_money || amount < lst_val)) return;
     Bid(sockfd, playerID, amount, rem_money);
+}
+
+// get score
+void Score() {
+    //char buf[MAXLINE]
+
 }
 
 bool GamePlay::ss_empty(const std::stringstream& ss) { 
