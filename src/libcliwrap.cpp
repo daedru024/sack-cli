@@ -443,6 +443,12 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     int amount, npID;
     if(tmp == "b") {
         buff >> amount >> npID;
+        // added
+        int dummyCardID; 
+        if (amount > 0) {
+             buff >> dummyCardID; 
+        }
+        //
         if(npID>=0) {
             if(amount>0) lst_val = amount;
             else if(amount == 0) {

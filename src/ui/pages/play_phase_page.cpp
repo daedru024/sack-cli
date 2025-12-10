@@ -52,15 +52,15 @@ void runPlayPhasePage(
     // 中央蓋牌區 (位置調整：往上移)
     struct CardSlot {
         bool filled = false;
-        bool revealed = false; // Add revealed state
+        bool revealed = false;
         int cardValue = 0;     // Store value for display
         sf::RectangleShape rect;
         sf::Color color;
-        sf::Text text;         // Text for revealed value
+        sf::Text text; 
     };
     std::vector<CardSlot> slots(nPlayers);
     
-    float baseX = 260.f;
+    float baseX = 280.f;
     float baseY = 180.f; 
     float dx    = 60.f;
 
@@ -151,6 +151,9 @@ void runPlayPhasePage(
     std::string lastActionMsg = "";
 
     sf::Clock stepTimer;
+    sf::Clock resultTimer;
+    const float SHOW_DURATION = 10.0f;
+
     sf::Text moneyText = mkCenterText(font, "$", 28, sf::Color::Yellow);
     moneyText.setOutlineColor(sf::Color::Black);
     moneyText.setOutlineThickness(2);
@@ -167,6 +170,8 @@ void runPlayPhasePage(
     if (currentTurnPlayer == myIndex) stepTimer.restart();
 
     bool isBiddingPhase = false;
+    bool showingResult = false;
+
     int currentHighBid = 0;
     int currentHighBidder = -1;
 
@@ -175,6 +180,9 @@ void runPlayPhasePage(
 
     // Track how many cards have been revealed by passing
     int revealedCount = 0;
+
+    // pass player count
+    int passCount = 0;
 
     // won rounds
     int wonRoundsCount = 0;
@@ -187,156 +195,225 @@ void runPlayPhasePage(
         // ---------------------------------------------------
         //  1. 網路封包接收
         // ---------------------------------------------------
-        if (!isBiddingPhase) 
+        if (!showingResult) 
         {
-            // --- 出牌階段 ---
-            int status = gameData.RecvPlay();
-            if (status >= 0 && status < 6) {
-                int p = status;
-                if (playedCount < nPlayers) {
-                    int cIdx = room.colors[p];
-                    sf::Color pColor = PLAYER_COLORS[cIdx];
-                    slots[playedCount].filled = true;
-                    slots[playedCount].rect.setFillColor(pColor);
-                    playedCount++;
-                }
-                lastActionMsg = room.playerNames[p] + " played a card";
-                stepTimer.restart();
-                currentTurnPlayer = (p + 1) % nPlayers;
+            if (!isBiddingPhase) 
+            {
+                // --- 出牌階段 ---
+                int status = gameData.RecvPlay();
+                if (status >= 0 && status < 6) {
+                    int p = status;
+                    if (playedCount < nPlayers) {
+                        int cIdx = room.colors[p];
+                        sf::Color pColor = PLAYER_COLORS[cIdx];
+                        slots[playedCount].filled = true;
+                        slots[playedCount].rect.setFillColor(pColor);
+                        playedCount++;
+                    }
+                    lastActionMsg = room.playerNames[p] + " played a card";
+                    stepTimer.restart();
+                    currentTurnPlayer = (p + 1) % nPlayers;
 
-                if (playedCount == nPlayers) {
-                    isBiddingPhase = true;
-                    lastActionMsg = "Bidding Phase Start";
-                    playBtn.setDisabled(true); 
-                    currentHighBid = 0; 
-                    hasSubmitted = false;
-                    revealedCount = 0;
+                    if (playedCount == nPlayers) {
+                        isBiddingPhase = true;
+                        lastActionMsg = "Bidding Phase Start";
+                        playBtn.setDisabled(true); 
+                        currentHighBid = 0; 
+                        hasSubmitted = false;
+                        revealedCount = 0;
+                    }
                 }
+                
             }
-            
-        }
-        else 
-        {
-            // --- 競標階段 ---
-            auto result = gameData.RecvBid();
-            int nextPlayer = result.first;
-            int bidder     = result.second.first;
-            int amount     = result.second.second;
-            int revealedId = gameData.CardsPlayed[gameData.PlayedThisRound()-1];
+            else 
+            {
+                // --- 競標階段 ---
+                while(true){
+                    auto result = gameData.RecvBid();
+                    int nextPlayer = result.first;
+                    int bidder     = result.second.first;
+                    int amount     = result.second.second;
+                    int revealedId = gameData.CardsPlayed[revealedCount];
 
-            if (nextPlayer != -2 && nextPlayer != CONN_CLOSED) {
-                stepTimer.restart();
+                    if (nextPlayer == -2) break; 
+                    if (nextPlayer == CONN_CLOSED) {
+                        state = State::EndConn;
+                        return;
+                    }
 
-                // 如果換人了，代表我的操作(如果有的話)已經被 Server 確認，可以重置提交狀態
-                if (currentTurnPlayer != nextPlayer) {
-                    hasSubmitted = false;
-                }
+                    //if (nextPlayer != -2 && nextPlayer != CONN_CLOSED) {
+                    stepTimer.restart();
 
-                currentTurnPlayer = nextPlayer;
+                    if (currentTurnPlayer != nextPlayer) {
+                        hasSubmitted = false;
+                    }
 
-                if (bidder >= 0) {
-                    if (amount > 0) {
-                        currentHighBid = amount;
-                        currentHighBidder = bidder;
-                        lastActionMsg = room.playerNames[bidder] + " bid $" + std::to_string(amount);
-                    } else {
-                        lastActionMsg = room.playerNames[bidder] + " passed";
+                    currentTurnPlayer = nextPlayer;
 
-                        // Reveal the leftmost unrevealed card
-                        if (revealedId != -1 && revealedCount < nPlayers) {
-                            CardSlot& slot = slots[revealedCount];
+                    if (bidder >= 0) {
+                        if (amount > 0) {
+                            currentHighBid = amount;
+                            currentHighBidder = bidder;
+                            lastActionMsg = room.playerNames[bidder] + " bid $" + std::to_string(amount);
+                        } else {
+                            lastActionMsg = room.playerNames[bidder] + " passed";
+
+                            // Reveal the leftmost unrevealed card
+                            if (revealedId != -1 && revealedCount < nPlayers) {
+                                CardSlot& slot = slots[revealedCount];
+                                slot.revealed = true;
+                                
+                                CardType t = getCardType(revealedId);
+                                slot.rect.setFillColor(cardFillColor(t)); 
+                                
+                                int val = cardValue(revealedId);
+                                slot.text.setString(std::to_string(val));
+                                
+                                sf::FloatRect b = slot.text.getLocalBounds();
+                                slot.text.setOrigin(b.left + b.width/2.f, b.top + b.height/2.f);
+                                sf::Vector2f pos = slot.rect.getPosition();
+                                sf::Vector2f sz = slot.rect.getSize();
+                                slot.text.setPosition(pos.x + sz.x/2.f, pos.y + sz.y/2.f);
+                                
+                                revealedCount++;
+                            }
+                        }
+                    }
+
+                    if (room.inGame % 2 != 0) {
+
+                        // 強制信任 server，讓收到 be 時能有贏家
+                        if (currentHighBidder == -1 && bidder >= 0) {
+                            currentHighBidder = bidder;
+                        }
+
+                        if (currentHighBidder != -1) {
+                            if (currentHighBidder >= 0 && currentHighBidder < nPlayers) {
+                                lastActionMsg = room.playerNames[currentHighBidder] + " won the bid";
+                            } else {
+                                lastActionMsg = "Unknown player won the bid";
+                            }
+
+                            if (currentHighBidder == myIndex) {
+                                wonRoundsCount++;
+                            }
+                        } 
+                        else {
+                            lastActionMsg = "Round Ended (No Winner)";
+                        }
+
+                        showingResult = true;
+                        resultTimer.restart();
+
+                        for(int i = 0; i < nPlayers && i < (int)gameData.CardsPlayed.size(); ++i) {
+                            CardSlot& slot = slots[i];
+                            int cId = gameData.CardsPlayed[i];
+                            
+                            // 強制翻開
                             slot.revealed = true;
-                            
-                            // Set color (based on card type)
-                            CardType t = getCardType(revealedId);
-                            slot.rect.setFillColor(cardFillColor(t)); 
-                            
-                            // Set text value
-                            int val = cardValue(revealedId);
+                            CardType t = getCardType(cId);
+                            slot.rect.setFillColor(cardFillColor(t));
+                            int val = cardValue(cId);
                             slot.text.setString(std::to_string(val));
-                            
-                            // Center text
+
                             sf::FloatRect b = slot.text.getLocalBounds();
                             slot.text.setOrigin(b.left + b.width/2.f, b.top + b.height/2.f);
                             sf::Vector2f pos = slot.rect.getPosition();
                             sf::Vector2f sz = slot.rect.getSize();
                             slot.text.setPosition(pos.x + sz.x/2.f, pos.y + sz.y/2.f);
-                            
-                            revealedCount++;
                         }
-                    }
-                }
 
-                if (room.inGame % 2 != 0) {
-                    if (currentHighBidder == myIndex) {
-                        wonRoundsCount++;
-                    }
-                    currentHighBidder = -1;
-                    isBiddingPhase = false;
-                    playedCount = 0;
-                    currentHighBid = 0;
-                    revealedCount = 0;
+                        // 更新 UI 狀態
+                        bidPanel.setVisible(false);
+                        hasSubmitted = false;
 
-                    for (auto& s : slots) {
-                        s.filled = false;
-                        s.revealed = false;
-                        s.rect.setFillColor(sf::Color(50, 50, 50));
                     }
-                    lastActionMsg = "New Round Start";
-                    updateBroadcast(lastActionMsg);
-                    bidPanel.setVisible(false);
-                    hasSubmitted = false;
+                    //}
                 }
+                
             }
         }
 
         // ---------------------------------------------------
         //  2. UI 邏輯
         // ---------------------------------------------------
+        
         bool isMyTurn = (currentTurnPlayer == myIndex);
 
-        if (isBiddingPhase) {
-            if (isMyTurn && !hasSubmitted) {
-                bidPanel.setVisible(true);
-                bidPanel.setRange(currentHighBid + 1, gameData.Money());
-                updateBroadcast(lastActionMsg + "\nYour turn to Bid");
+        if (showingResult) {
+            float elapsed = resultTimer.getElapsedTime().asSeconds();
+            int remaining = (int)(SHOW_DURATION - elapsed);
+            
+            if (remaining > 0) {
+                // 顯示倒數
+                std::string msg = lastActionMsg + "\nNext Round in " + std::to_string(remaining) + "s";
+                updateBroadcast(msg);
+                
+                // 倒數期間鎖定計時器文字
+                timerText.setString(""); 
             } else {
+                // 時間到，執行真正的 Reset
+                showingResult = false;
+                
+                currentHighBidder = -1;
+                isBiddingPhase = false;
+                playedCount = 0;
+                currentHighBid = 0;
+                revealedCount = 0;
+
+                for (auto& s : slots) {
+                    s.filled = false;
+                    s.revealed = false;
+                    s.rect.setFillColor(sf::Color(50, 50, 50));
+                }
+                lastActionMsg = "New Round Start"; 
+                updateBroadcast(lastActionMsg);
+            }
+        }
+        else{
+            if (isBiddingPhase) {
+                if (isMyTurn && !hasSubmitted) {
+                    bidPanel.setVisible(true);
+                    int minBid = (currentHighBid == 0) ? 1 : currentHighBid + 1;
+                    bidPanel.setRange(minBid, gameData.Money());
+                    updateBroadcast(lastActionMsg + "\nYour turn to Bid");
+                } else {
+                    bidPanel.setVisible(false);
+                    updateBroadcast(lastActionMsg);
+                }
+            }
+            else {
                 bidPanel.setVisible(false);
-                updateBroadcast(lastActionMsg);
-            }
-        }
-        else {
-            bidPanel.setVisible(false);
-            if(isMyTurn){
-                updateBroadcast("Your turn play card");
-            }
-            else{
-                updateBroadcast(lastActionMsg);
+                if(isMyTurn){
+                    updateBroadcast("Your turn play card");
+                }
+                else{
+                    updateBroadcast(lastActionMsg);
+                }
+
             }
 
-        }
+            if (isMyTurn) {
+                int remain = (isBiddingPhase ? 60 : 45) - (int)stepTimer.getElapsedTime().asSeconds();
+                if (remain < 0) remain = 0;
+                timerText.setString("Time left - " + std::to_string(remain) + " s");
+                sf::FloatRect b = timerText.getLocalBounds();
+                timerText.setOrigin(b.left + b.width/2.f, b.top + b.height/2.f);
+                timerText.setPosition(400.f, 580.f);
+                timerText.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
+            } else {
+                timerText.setString("");
 
-        if (isMyTurn) {
-            int remain = (isBiddingPhase ? 60 : 45) - (int)stepTimer.getElapsedTime().asSeconds();
-            if (remain < 0) remain = 0;
-            timerText.setString("Time left - " + std::to_string(remain) + " s");
-            // 置中邏輯
-            sf::FloatRect b = timerText.getLocalBounds();
-            timerText.setOrigin(b.left + b.width/2.f, b.top + b.height/2.f);
-            timerText.setPosition(400.f, 580.f);
-            timerText.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
-        } else {
-            timerText.setString("");
+            }
 
+            moneyText.setString("Money: $" + std::to_string(gameData.Money()));
+            {
+                sf::FloatRect b = moneyText.getLocalBounds();
+                moneyText.setOrigin(b.left, b.top + b.height/2.f); 
+                moneyText.setPosition(60.f, 550.f);
+            }
         }
-
-        moneyText.setString("Money: $" + std::to_string(gameData.Money()));
-        {
-            // 靠左對齊
-            sf::FloatRect b = moneyText.getLocalBounds();
-            moneyText.setOrigin(b.left, b.top + b.height/2.f); 
-            moneyText.setPosition(60.f, 550.f); // 手牌區左側下方
-        }
+        
 
         // ---------------------------------------------------
         //  3. 事件
@@ -347,42 +424,46 @@ void runPlayPhasePage(
             if (e.type == sf::Event::Closed) window.close();
             if (e.type == sf::Event::Resized) updateBackgroundUI();
 
-            if (!isBiddingPhase) 
+            if (!showingResult) 
             {
-                hand.handleClick(e, window);
-                if (playBtn.clicked(e, window) && isMyTurn) {
-                    int cardId = hand.selectedCardId();
-                    if (cardId != -1) {
-                        if (gameData.Play(cardId)) {
-                            playBtn.setDisabled(true);
-                            lastActionMsg = "You played card " + std::to_string(cardId);
-                            auto it = std::find(myHand.begin(), myHand.end(), cardId);
-                            if (it != myHand.end()) myHand.erase(it);
-                            hand.setHand(myHand, font);
-                            hand.clearSelection();
+                if (!isBiddingPhase) 
+                {
+                    hand.handleClick(e, window);
+                    if (playBtn.clicked(e, window) && isMyTurn) {
+                        int cardId = hand.selectedCardId();
+                        if (cardId != -1) {
+                            if (gameData.Play(cardId)) {
+                                playBtn.setDisabled(true);
+                                lastActionMsg = "You played card " + std::to_string(cardId);
+                                auto it = std::find(myHand.begin(), myHand.end(), cardId);
+                                if (it != myHand.end()) myHand.erase(it);
+                                hand.setHand(myHand, font);
+                                hand.clearSelection();
+                            }
                         }
                     }
-                }
-            } 
-            else 
-            {
-                // 處理競標面板事件
-                auto action = bidPanel.handleEvent(e, window);
-                if (action == BidPanel::Action::Submit) {
-                    gameData.SendBid(bidPanel.value);
-                    bidPanel.setVisible(false);
-                    hasSubmitted = true;
-                }
-                else if (action == BidPanel::Action::Pass) {
-                    gameData.SendBid(0); // 棄標
-                    bidPanel.setVisible(false);
-                    hasSubmitted = true;
+                } 
+                else 
+                {
+                    // 處理競標面板事件
+                    auto action = bidPanel.handleEvent(e, window);
+                    if (action == BidPanel::Action::Submit) {
+                        gameData.SendBid(bidPanel.value);
+                        bidPanel.setVisible(false);
+                        hasSubmitted = true;
+                    }
+                    else if (action == BidPanel::Action::Pass) {
+                        gameData.SendBid(0); // 棄標
+                        bidPanel.setVisible(false);
+                        hasSubmitted = true;
+                    }
                 }
             }
         }
+        
 
         // Play Button 狀態
-        if (!isBiddingPhase) {
+        if (!isBiddingPhase && !showingResult) {
             bool canPlay = isMyTurn && (hand.selectedIndex() != -1);
             playBtn.setDisabled(!canPlay);
             if (!playBtn.disabled) playBtn.update(window);
@@ -404,11 +485,12 @@ void runPlayPhasePage(
             }
         }
         
-        // 出牌階段亮，競標階段暗 (可透過 Color 調整，這裡簡單處理)
         hand.draw(window); 
 
-        if (!isBiddingPhase) playBtn.draw(window);
-        if (isBiddingPhase) bidPanel.draw(window);
+        if (!showingResult) {
+            if (!isBiddingPhase) playBtn.draw(window);
+            if (isBiddingPhase) bidPanel.draw(window);
+        }
 
         window.draw(broadcast);
         if (isMyTurn) window.draw(timerText);
@@ -434,7 +516,6 @@ void runPlayPhasePage(
             window.draw(countText);
         }
 
-        //window.draw(wonLabel);
    
         sf::RectangleShape border = wonStackBg;
         border.setFillColor(sf::Color::Transparent);

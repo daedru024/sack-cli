@@ -6,11 +6,11 @@
 
 // 顏色表
 inline const std::array<sf::Color, 5> PLAYER_COLORS = {
-    sf::Color(0,120,255),   // Blue
-    sf::Color(255,60,60),   // Red
-    sf::Color(0,200,0),     // Green
-    sf::Color(255,220,0),   // Yellow
-    sf::Color(255,140,0)    // Orange
+    sf::Color(70,130,180),  // Blue
+    sf::Color(205,92,92),   // Red
+    sf::Color(102,187,106), // Green
+    sf::Color(205,173,0),   // Yellow
+    sf::Color(255,159,67)    // Orange
 };
 
 class ColorSelector

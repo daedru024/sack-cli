@@ -22,14 +22,14 @@ inline CardType getCardType(int cardId) {
 
 inline sf::Color cardFillColor(CardType t) {
     // 普通貓: 淺黃色 (255,240,180)
-    // 大狗:   深紅色 (200,50,50)
-    // 小狗:   橘色   (255,150,0)
-    // 兔子:   淺綠色 (150,255,150)
+    // 大狗:   紫色 (147,112,219)
+    // 小狗:   棕色 (205,133,63)
+    // 兔子:   粉紅色 (255,105,180)
     switch (t) {
         case CardType::Cat:     return sf::Color(255,240,180);
-        case CardType::BigDog:  return sf::Color(200,50,50);
-        case CardType::SmallDog:return sf::Color(255,150,0);
-        case CardType::Rabbit:  return sf::Color(150,255,150);
+        case CardType::BigDog:  return sf::Color(147,112,219);
+        case CardType::SmallDog:return sf::Color(205,133,63);
+        case CardType::Rabbit:  return sf::Color(255,105,180);
     }
     return sf::Color::White;
 }
