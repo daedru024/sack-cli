@@ -226,8 +226,9 @@ int GamePlay::LockRoom() {
     char buf[MAXLINE];
     while(Recv(sockfd, buf) == -2);
     lst_conn = time(NULL);
-    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
-        return GAME_START;
+    int k;
+    if((k = GetRoomInfo(roomID, myRoom, buf)) != 0) 
+        return k;
     if(myRoom.locked == false) {
         if(myRoom.n_players < 3)
             return NOT_ENOUGH_PLAYERS;
@@ -334,15 +335,11 @@ void GamePlay::Rabbit(int r) {
 }
 
 int GamePlay::RecvPlay() {
-    //TODO
     //ri {card}
     //c {PlayerID} {code}
     //ap {id}
     char buf[MAXLINE];
     time_t tm = time(NULL);
-#ifdef DEBUG
-    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
-#endif
     if(ss_empty(buff)) {
         int n = Recv(sockfd, buf);
         if(n == -2) {
@@ -363,14 +360,15 @@ int GamePlay::RecvPlay() {
     }
     std::string tmp;
     int pID, cd;
-    buff >> tmp >> pID;
+    buff >> tmp;
     if(tmp == "ap") {
         //autoplay or end connection
-        //TODO
+        buff >> pID;
         myRoom.playerNames[pID] += " (auto)";
         return AUTO_PLAYER;
     }
     else if(tmp == "ri") {
+        buff >> pID;
         if(MASKUc.to_ulong() != 0) return -1;
         MASKUc[pID] = 1;
         removedCardId = pID;
@@ -381,6 +379,7 @@ int GamePlay::RecvPlay() {
         return PlayNext();
     }
     else if(tmp != "c") return -2;
+    buff >> pID;
     if(!ss_empty(buff)) buff >> cd;
     //not pID's round, ignore
     if(cd == 0 || cd == -1) {
@@ -411,9 +410,6 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //ap {PlayerID}
     char buf[MAXLINE];
     time_t tm = time(NULL);
-#ifdef DEBUG
-    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
-#endif
     if(ss_empty(buff)) {
         if(Recv(sockfd, buf) == -2) {
             if(difftime(tm, lst_conn) >= 50) {
@@ -433,27 +429,21 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     }
     std::string tmp;
     int pID;
-    buff >> tmp >> pID;
+    buff >> tmp;
     if(tmp == "ap") {
         //auto player
-        //TODO
+        buff >> pID;
         myRoom.playerNames[pID] += " (auto)";
         return {AUTO_PLAYER, {-1,-1}};
     }
     int amount, npID;
     if(tmp == "b") {
-        buff >> amount >> npID;
-        // added
-        int dummyCardID; 
-        if (amount > 0) {
-             buff >> dummyCardID; 
-        }
-        //
+        buff >> pID >> amount >> npID;
         if(npID>=0) {
+            buff >> CardsPlayed[played];
             if(amount>0) lst_val = amount;
             else if(amount == 0) {
                 //abandoned bid
-                buff >> CardsPlayed[played];
                 Results.stks[Round()-1][played] = CardsPlayed[played];
                 if(pID == playerID) {
                     rem_money += MakeUp[played];
@@ -467,7 +457,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         return {npID, {pID, amount}};
     }
     if(tmp == "be") {
-        buff >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
+        buff >> pID >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
         Results.stks[Round()-1][myRoom.n_players-1] = CardsPlayed[myRoom.n_players-1];
         Results.winner[Round()-1] = pID;
         std::pair<int,std::pair<int,int>> ret;

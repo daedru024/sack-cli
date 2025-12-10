@@ -104,11 +104,7 @@ public:
     int GameStart();
     // send unlock message
     int UnlockRoom();
-
-    // /**** GAME Request ****/
-    // /************************/
-    // int StartRequest();
-
+    
     /**** GAME MECHANISM ****/
     /************************/
     // play card
