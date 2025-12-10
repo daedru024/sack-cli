@@ -126,7 +126,7 @@ public:
     // bid
     void SendBid(int amount);
     // get score
-    void Score();
+    bool Score();
 
     /**** HELPER FUNCTIONS ****/
     /**************************/

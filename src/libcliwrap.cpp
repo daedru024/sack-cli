@@ -489,9 +489,17 @@ void GamePlay::SendBid(int amount) {
 }
 
 // get score
-void Score() {
-    //char buf[MAXLINE]
-
+bool GamePlay::Score() {
+    //ws {won[:] values[:]} {score[:]}
+    char buf[MAXLINE];
+    while(Recv(sockfd, buf) == -2) ;
+    buff = std::stringstream(buf);
+    std::string tmp;
+    buff >> tmp;
+    if(tmp != "ws") return 0;
+    for(int k=0; k<9; k++) buff >> Results.winner[k] >> Results.stackValue[k];
+    for(int k=0; k<myRoom.n_players; k++) buff >> Results.PlayerScore[k];
+    return 1;
 }
 
 bool GamePlay::ss_empty(const std::stringstream& ss) { 

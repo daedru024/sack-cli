@@ -110,31 +110,6 @@ int Recv(int sockfd, char *recvline) {
     return -1;
 }
 
-// int RecvNB(int sockfd, char *recvline)
-// {
-//     fd_set rfds;
-//     FD_ZERO(&rfds);
-//     FD_SET(sockfd, &rfds);
-
-//     struct timeval tv;
-//     tv.tv_sec = 0;
-//     tv.tv_usec = 0; // 完全 non-blocking
-
-//     int sel = select(sockfd + 1, &rfds, NULL, NULL, &tv);
-//     if (sel <= 0)
-//         return -2;  // no data
-
-//     ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
-//     if (n <= 0)
-//         return -1;
-
-//     recvline[n] = 0;
-// #ifdef DEBUG
-//     printf("RecvNB: %s\n", recvline);
-// #endif
-//     return (int)n;
-// }
-
 void Write(int sockfd, const void *vptr, size_t n) {
     size_t rem;
     ssize_t nw;
