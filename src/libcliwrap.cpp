@@ -73,8 +73,9 @@ int GamePlay::ChooseColor(int c) {
     char buf[MAXLINE];
     while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
-    if((c = GetRoomInfo(roomID, myRoom, buf)) != 0) 
-        return c;
+    int k;
+    if((k = GetRoomInfo(roomID, myRoom, buf)) != 0) 
+        return k;
     if(myRoom.colors[playerID] != c) 
         return -1;
     return 0;
