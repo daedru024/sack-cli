@@ -38,7 +38,7 @@ namespace RInfo {
     constexpr float SELECTED_Y   = PANEL_Y + 20.f;
     constexpr float PASS_LABEL_Y = PANEL_Y + 110.f;
     constexpr float PASS_BOX_Y   = PANEL_Y + 150.f;
-    constexpr float ERROR_Y      = PANEL_Y + 210.f;
+    constexpr float ERROR_Y      = PANEL_Y + 220.f;
     constexpr float JOIN_BTN_Y   = PANEL_Y + 280.f;
 
     constexpr float EXIT_W       = 120.f;

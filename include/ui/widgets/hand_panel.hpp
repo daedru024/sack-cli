@@ -3,7 +3,7 @@
 #include <vector>
 #include <algorithm>
 #include "ui/widgets/card_widget.hpp"
-#include "ui/game/game_cards.hpp"
+#include "ui/widgets/game_cards.hpp"
 
 class HandPanel {
 public:
@@ -93,6 +93,10 @@ public:
 private:
     void rebuildCards(const sf::Font& font) {
         cards.clear();
+
+        // reset selection
+        selectedIdx = -1;
+        
         if (handIds.empty()) return;
 
         float totalWidth = areaRight - areaLeft;
@@ -126,7 +130,6 @@ private:
             x += cardWidth + spacing;
         }
         
-        // reset selection
-        selectedIdx = -1;
+        
     }
 };

@@ -2,7 +2,7 @@
 #include <SFML/Graphics.hpp>
 #include <string>
 #include "ui/common/ui_common.hpp"
-#include "ui/game/game_cards.hpp"
+#include "ui/widgets/game_cards.hpp"
 
 class CardWidget {
 public:

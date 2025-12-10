@@ -40,7 +40,7 @@ namespace LobbyUI {
     constexpr float PANEL_W       = 240.f;
     constexpr float PANEL_CENTER  = PANEL_X + PANEL_W / 2.f;
 
-    constexpr float EXIT_X        = PANEL_CENTER;
+    constexpr float EXIT_X        = 660.f;
     constexpr float EXIT_Y        = 40.f;
     constexpr float EXIT_W        = 160.f;
     constexpr float EXIT_H        = 50.f;
@@ -49,7 +49,7 @@ namespace LobbyUI {
     constexpr float COLOR_PICKER_Y = 250.f;
 
     constexpr float START_X       = 230.f;
-    constexpr float START_Y       = 515.f;
+    constexpr float START_Y       = 521.f;
     constexpr float START_W       = 260.f;
     constexpr float START_H       = 70.f;
 
@@ -149,7 +149,7 @@ void runInRoomPage(
 
     std::string titleStr = room.name +
         " (" + std::to_string(n) + "/5 Players)";
-    if (room.isLocked()) titleStr += " - LOCKED";
+    //if (room.isLocked()) titleStr += " - LOCKED";
     Label title(&font, titleStr, TITLE_X, TITLE_Y, 40,
                 sf::Color::White, sf::Color::Black, 5);
     title.centerText();
@@ -209,6 +209,13 @@ void runInRoomPage(
         int prevMyIndex = myIndex;
 
         int status = gameData.GetRoomInfo();
+
+        if (status == CONN_CLOSED) {
+            state = State::RoomInfo; // 或者 State::EndConn
+            return;
+        }
+
+        
         if (status == GAME_START) {
             // 一收到 GameStart → 進入起始手牌階段
             state = State::GameStart;

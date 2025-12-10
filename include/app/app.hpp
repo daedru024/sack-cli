@@ -32,6 +32,7 @@
 #include "ui/pages/starthand_page.hpp"
 #include "ui/pages/discard_page.hpp"
 #include "ui/pages/play_phase_page.hpp"
+#include "ui/pages/settlement_page.hpp"
 
 // =====================
 // Widgets
@@ -41,6 +42,10 @@
 #include "ui/widgets/label.hpp"
 #include "ui/widgets/textbox.hpp"
 #include "ui/widgets/ui_element.hpp"
+#include "ui/widgets/bid_panel.hpp"
+#include "ui/widgets/card_widget.hpp"
+#include "ui/widgets/hand_panel.hpp"
+#include "ui/widgets/game_cards.hpp"
 
 extern std::vector<Room> rooms;
 extern GamePlay gameData;

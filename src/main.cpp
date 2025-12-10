@@ -81,6 +81,10 @@ int main()
                 runPlayPhasePage(window, state, reason, username);
                 break;
 
+            case State::Settlement:
+                runSettlementPage(window, state, username);
+                break;
+                
             case State::ReEstablish:
                 state = State::RoomInfo;
                 break;

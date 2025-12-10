@@ -250,12 +250,6 @@ void runUsernamePage(
                 error.set("Connecting to server...");
                 error.centerText();
 
-                // ⭐⭐⭐ UI TEST MODE：不連 server，直接進入房間清單 ⭐⭐⭐
-                // if (UI_TEST_MODE) {
-                //     gameData = GamePlay();   // no socket
-                //     state = State::RoomInfo;
-                //     return;
-                // }
 
                 // 3. 嘗試連線
                 GamePlay play(servip.c_str(), username);
