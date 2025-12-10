@@ -31,11 +31,23 @@ class GamePlay {
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
 public:
-    Room myRoom;
+    static Room myRoom;
     int removedCardId = -1;
     //int startFlag = 0;
     std::vector<int> MakeUp, CardsPlayed;
     std::stringstream buff;
+
+    struct Scores {
+        std::vector<int> stackValue;
+        std::vector<int> winner;
+        std::vector<std::vector<int>> stks;
+        std::vector<int> PlayerScore;
+        Scores() {}
+        Scores(int n) : stackValue(9,0), winner(9,-1), stks(9,std::vector<int>(n)), PlayerScore(n, 0) {}
+    };
+
+    Scores Results;
+
     GamePlay() {std::srand(time(NULL));}
     GamePlay(const char* servip, std::string s) : servip(servip), UserName(s), sockfd(-1) {}
     GamePlay& operator=(const GamePlay &other);
@@ -113,7 +125,8 @@ public:
     bool HasCard(int cid) const { return !MASKUc[cid]; }
     // bid
     void SendBid(int amount);
-    //TODO: get score
+    // get score
+    void Score();
 
     /**** HELPER FUNCTIONS ****/
     /**************************/
