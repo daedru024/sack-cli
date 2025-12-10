@@ -31,7 +31,7 @@ class GamePlay {
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
 public:
-    static Room myRoom;
+    Room myRoom;
     int removedCardId = -1;
     //int startFlag = 0;
     std::vector<int> MakeUp, CardsPlayed;
