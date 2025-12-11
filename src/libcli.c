@@ -11,7 +11,7 @@ int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
 
 int Close(int sockfd) {
     if(shutdown(sockfd, SHUT_WR) == -1) {
-        if(errno == EBADF) return 0;
+        if(errno == EBADF || errno == ENOTCONN) return 0;
         else err_sys("close error");
     }
     return 0;
@@ -96,11 +96,13 @@ int Recv(int sockfd, char *recvline) {
     }
     if (FD_ISSET(sockfd, &rfds)) {
         ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
-        if (n < 0) err_sys("Recv");
-        else if (n == 0) {
-            //TODO
-            printf("Connection closed\n");
+        if (n < 0) {
+            if(errno == ECONNRESET) return -4096;
+            err_sys("Recv");
         }
+#ifdef DEBUG
+        if (n == 0) printf("Connection closed\n");
+#endif
         recvline[n] = 0;
 #ifdef DEBUG
         printf("Recv: %s\n", recvline);

@@ -71,9 +71,9 @@ int GamePlay::ChooseColor(int c) {
     Write(sockfd, ss.str().c_str(), ss.str().length());
     //get broadcasted room info
     char buf[MAXLINE];
+    int k;
     while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
-    int k;
     if((k = GetRoomInfo(roomID, myRoom, buf)) != 0) 
         return k;
     if(myRoom.colors[playerID] != c) 
@@ -158,7 +158,8 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 // get room info when already in room
 int GamePlay::GetRoomInfo() {
     char buf[MAXLINE];
-    if (Recv(sockfd, buf) == -2) {
+    int k;
+    if ((k = Recv(sockfd, buf)) == -2) {
         // keep-alive
         time_t currtime = time(NULL);
         if (difftime(currtime, lst_conn) >= 50 && (playerID || !myRoom.locked)) {
@@ -170,6 +171,7 @@ int GamePlay::GetRoomInfo() {
         }
         return 0;
     }
+    if(k == CONN_CLOSED) return k;
     if (strlen(buf) == 0)
         return CONN_CLOSED;
     lst_conn = time(NULL);
