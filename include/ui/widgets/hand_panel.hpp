@@ -12,10 +12,19 @@ public:
     int                      selectedIdx = -1;
     bool blindMode = false; //牌背模式
 
+    sf::RectangleShape       bgRect;
+
     // 底部區域 (預設 800x600 底部 1/3)
     float areaLeft   = 80.f;
     float areaRight  = 720.f;
     float areaY      = 430.f;   // 卡牌中心的 Y
+
+    HandPanel() {
+        // ★ 初始化底框樣式
+        bgRect.setFillColor(sf::Color(60, 50, 40, 200)); // 深暖棕色，半透明
+        bgRect.setOutlineColor(sf::Color(255, 250, 220)); // 米白邊框
+        bgRect.setOutlineThickness(2.f);
+    }
 
     void setArea(float left, float right, float centerY) {
         areaLeft  = left;
@@ -87,6 +96,9 @@ public:
     }
 
     void draw(sf::RenderWindow& win) const {
+        if (bgRect.getSize().x > 0) {
+            win.draw(bgRect);
+        }
         for (auto& c : cards) c.draw(win);
     }
 
@@ -97,7 +109,10 @@ private:
         // reset selection
         selectedIdx = -1;
         
-        if (handIds.empty()) return;
+        if (handIds.empty()){
+            // bgRect.setSize({0.f, 0.f});
+            return;
+        }
 
         float totalWidth = areaRight - areaLeft;
         int   n          = (int)handIds.size();
@@ -120,6 +135,18 @@ private:
         }
 
         float startX = areaLeft + (totalWidth - contentW) / 2.f;
+
+        float padX = 20.f; // 左右留白
+        float padY = 15.f; // 上下留白
+
+        // 底框寬度 = 內容寬 + 左右留白
+        // 底框高度 = 卡牌高 + 上下留白
+        bgRect.setSize({contentW + padX * 2.f, cardHeight + padY * 2.f});
+        
+        // 底框位置：
+        // X = 第一張牌的左邊界 (startX) - 左留白
+        // Y = 卡牌中心Y (areaY) - 卡牌一半高度 - 上留白
+        bgRect.setPosition(startX - padX, areaY - cardHeight / 2.f - padY);
 
         float x = startX;
 

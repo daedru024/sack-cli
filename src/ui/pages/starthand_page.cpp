@@ -61,21 +61,47 @@ void runStartHandPage(
     // -------------------------
     // Title
     // -------------------------
-    Label title(&font, "Start Hand Phase", 400, 40, 26,
-                sf::Color::White, sf::Color::Black, 4);
+    Label title(&font, "Start Hand Phase", 400, 30, 40,
+                sf::Color::Yellow, sf::Color::Black, 2.f);
     title.centerText();
 
     // -------------------------
     // 廣播訊息：等待他人棄牌
     // -------------------------
-    sf::Text waitMsg;
-    waitMsg.setFont(font);
-    waitMsg.setString("Waiting for other players to discard...");
-    waitMsg.setCharacterSize(32);
-    waitMsg.setFillColor(sf::Color::White);
-    waitMsg.setOutlineColor(sf::Color::Black);
-    waitMsg.setOutlineThickness(3);
-    waitMsg.setPosition(400 - waitMsg.getLocalBounds().width / 2, 90);
+    Label broadcastLabel(&font, "", 400, 110, 32, sf::Color::Black);
+    broadcastLabel.text.setOutlineColor(sf::Color::White);
+    broadcastLabel.text.setOutlineThickness(4);
+
+    sf::RectangleShape broadcastPanel;
+    broadcastPanel.setFillColor(sf::Color(50, 45, 40, 180));
+    broadcastPanel.setOutlineColor(sf::Color(255, 255, 255, 120)); 
+    broadcastPanel.setOutlineThickness(1.f);
+
+    auto updateBroadcast = [&](std::string msg) {
+        if (msg.empty()) {
+            broadcastLabel.set("");
+            broadcastPanel.setSize({0, 0});
+            return;
+        }
+
+        broadcastLabel.set(msg);
+        
+        sf::FloatRect textBounds = broadcastLabel.text.getLocalBounds();
+        
+        float paddingX = 40.f;
+        float paddingY = 20.f;
+        float width = textBounds.width + paddingX * 2.f;
+        float height = textBounds.height + paddingY * 2.f;
+        
+        broadcastPanel.setSize({width, height});
+        broadcastPanel.setOrigin(width / 2.f, height / 2.f);
+        broadcastPanel.setPosition(400.f, 115.f); 
+        
+        broadcastLabel.text.setPosition(400.f, 115.f);
+        broadcastLabel.centerText();
+    };
+
+    updateBroadcast("Waiting for other players to discard...");
 
     bool hosted = true;
 
@@ -89,24 +115,16 @@ void runStartHandPage(
         // -------------------------
         int status = gameData.RecvPlay();
 
-        // ⭕ Case 1：要去棄牌
-        //if ((status == CHOOSE_RABBIT || gameData.PlayerID() == 0) && hosted) {
         if ((status == CHOOSE_RABBIT) && hosted) {
             if(gameData.PlayerID() == 0) hosted = false;
             state = State::Discard;
             return;
         }   
 
-        // ⭕ Case 2：當 Host 最後收到 ri → 出牌階段開始
         if (status == gameData.PlayNext()) {
-            state = State::Game; // runPlayPhasePage() 在 main 裡處理
+            state = State::Game;
             return;
         }
-        //added
-        // if (gameData.PlayerID() == 0) {
-        //     state = State::Game;
-        //     return;
-        // }
 
         // -------------------------
         // UI 事件處理
@@ -131,7 +149,10 @@ void runStartHandPage(
         hand.draw(window);
 
 
-        window.draw(waitMsg);
+        if (broadcastPanel.getSize().x > 0) {
+            window.draw(broadcastPanel);
+        }
+        broadcastLabel.draw(window);
 
         window.display();
     }

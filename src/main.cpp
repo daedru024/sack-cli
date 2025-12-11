@@ -22,6 +22,18 @@ int main()
     );
     window.setVerticalSyncEnabled(true);
 
+
+    bool texturesLoaded = false;
+    if (GameCardResources::getInstance().loadTextures("assets/")) {
+        std::cout << "[Info] Card textures loaded from 'assets/'" << std::endl;
+        texturesLoaded = true;
+    } 
+
+    if (!texturesLoaded) {
+        std::cerr << "[Warning] Failed to load card textures! Cards will display as red blocks." << std::endl;
+        std::cerr << "          Please ensure 'card_0.png' through 'card_9.png' are in 'sack-cli/assets/'." << std::endl;
+    }
+
     State state = State::UsernameInput;
     EndReason reason = EndReason::None;
     std::string username;

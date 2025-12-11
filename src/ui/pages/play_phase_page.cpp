@@ -72,7 +72,7 @@ void runPlayPhasePage(
     }
     
     float baseX = 280.f;
-    float baseY = 200.f; 
+    float baseY = 215.f; 
     float dx    = 60.f;
 
     std::vector<int> makeupMoney;
@@ -83,9 +83,10 @@ void runPlayPhasePage(
         sf::Vector2f pos(baseX + i * dx, baseY);
         sf::Vector2f size(50.f, 70.f);
         
-        slots[i].widget.init(font, 2, pos, size); // 2 是背面/預設
+        slots[i].widget.init(font, -1, pos, size); // 背面/預設
+        slots[i].widget.isTextureMode = false;
         slots[i].widget.rect.setFillColor(sf::Color(50, 50, 50)); // 未填充時是灰色
-        slots[i].widget.text.setString(""); // 不顯示文字
+        // slots[i].widget.text.setString(""); // 不顯示文字
 
         int amount = makeupMoney[i];
         if (amount > 0) {
@@ -100,12 +101,12 @@ void runPlayPhasePage(
     }
 
     // Play Card 按鈕
-    Button playBtn(&font, "PLAY CARD", 400, 520, 180, 50, true);
+    Button playBtn(&font, "PLAY CARD", 400, 530, 200, 50, true);
     playBtn.setDisabled(true);
 
     // BidPanel
     BidPanel bidPanel;
-    bidPanel.init(font, 130.f, 330.f); 
+    bidPanel.init(font, 130.f, 335.f); 
     bidPanel.setVisible(false);
 
     // --- (Won Stack) ---
@@ -140,19 +141,55 @@ void runPlayPhasePage(
         wonLabel.centerText();
     }
 
-    // --- 4. 文字標籤 (使用 Label) ---
+    // --- 4. 文字標籤 ---
+    // 標題文字
     std::string roundStr = "Play Phase - Round " + std::to_string(gameData.Round());
-    Label titleLabel(&font, roundStr, 400, 40, 28, sf::Color::Yellow, sf::Color::Black, 2.f);
-    titleLabel.centerText();
+    Label titleLabel(&font, roundStr, 400, 30, 32, sf::Color::Yellow, sf::Color::Black, 2.f);
+    
+    auto updateTitle = [&](std::string text) {
+        titleLabel.set(text);
+        titleLabel.centerText();
+    };
+
+    updateTitle(roundStr);
+
 
     // 廣播訊息
-    Label broadcastLabel(&font, "", 400, 100, 32, sf::Color::Black);
+    Label broadcastLabel(&font, "", 400, 110, 32, sf::Color::Black);
     broadcastLabel.text.setOutlineColor(sf::Color::White);
     broadcastLabel.text.setOutlineThickness(4);
 
+    // 廣播底框
+    sf::RectangleShape broadcastPanel;
+    broadcastPanel.setFillColor(sf::Color(50, 45, 40, 180));
+    broadcastPanel.setOutlineColor(sf::Color(255, 255, 255, 120)); 
+    broadcastPanel.setOutlineThickness(1.f);
+
     // 封裝廣播更新函式
     auto updateBroadcast = [&](std::string msg) {
+        if (msg.empty()) {
+            broadcastLabel.set("");
+            broadcastPanel.setSize({0, 0});
+            return;
+        }
+
         broadcastLabel.set(msg);
+        
+        // 取得文字大小
+        sf::FloatRect textBounds = broadcastLabel.text.getLocalBounds();
+        
+        float paddingX = 40.f;
+        float paddingY = 20.f;
+        float width = textBounds.width + paddingX * 2.f;
+        float height = textBounds.height + paddingY * 2.f;
+        
+        broadcastPanel.setSize({width, height});
+        
+        broadcastPanel.setOrigin(width / 2.f, height / 2.f);
+        
+        broadcastPanel.setPosition(400.f, 115.f); 
+        
+        broadcastLabel.text.setPosition(400.f, 115.f);
         broadcastLabel.centerText();
     };
     updateBroadcast("");
@@ -349,8 +386,9 @@ void runPlayPhasePage(
                 for (auto& s : slots) {
                     s.filled = false;
                     s.revealed = false;
+                    s.widget.isTextureMode = false; // 強制關閉圖片
                     s.widget.rect.setFillColor(sf::Color(50, 50, 50));
-                    s.widget.text.setString("");
+                    // s.widget.text.setString("");
                     int amount = makeupMoney[&s - &slots[0]]; // 計算 index
                     if (amount > 0) s.moneyLabel.set("+" + std::to_string(amount));
                     
@@ -365,8 +403,7 @@ void runPlayPhasePage(
                 updateBroadcast(lastActionMsg);
 
                 std::string newTitle = "Play Phase - Round " + std::to_string(gameData.Round());
-                titleLabel.set(newTitle);
-                titleLabel.centerText();
+                updateTitle(newTitle);
             }
         }
         else {
@@ -477,6 +514,12 @@ void runPlayPhasePage(
         if (!showingResult) {
             if (!isBiddingPhase) playBtn.draw(window);
             if (isBiddingPhase) bidPanel.draw(window);
+        }
+
+        
+
+        if (broadcastPanel.getSize().x > 0) {
+            window.draw(broadcastPanel);
         }
 
         broadcastLabel.draw(window);
