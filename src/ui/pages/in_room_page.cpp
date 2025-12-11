@@ -217,7 +217,6 @@ void runInRoomPage(
 
         
         if (status == GAME_START) {
-            // 一收到 GameStart → 進入起始手牌階段
             state = State::GameStart;
             return;
         }
@@ -334,16 +333,22 @@ void runInRoomPage(
                     continue;
                 }
 
-                // ▶ server stat = 4, 自動送 GAMESTART
-                gameData.LockRoom();
+                // added : 如果回傳 choose_rabbit 就不要再等一次loop
+                // gameData.LockRoom();
+                int res = gameData.LockRoom();
                 std::cout << "[Host] LOCK & START sent.\n";
 
-                // if (gameData.startFlag == GAME_START || gameData.startFlag == CHOOSE_RABBIT)
-                // {
-                //     std::cout << "[Instant Check] StartFlag: " << gameData.startFlag << std::endl;
-                //     state = State::GameStart;
-                //     return;
-                // }
+                if(res == CHOOSE_RABBIT){
+                    state = State::Discard;
+                    return;
+                }
+
+                // 保險起見，雖然應該不會用到
+
+                if(res == GAME_START){
+                    state = State::GameStart;
+                    return;
+                }
             }
         }
 
