@@ -71,7 +71,10 @@ void runRoomInfoPage(
     loadFontSafe(font);
 
     // ---- 初始連線 + 拿房間資訊（用原本 blocking 版，確保一開始有資料）----
-    gameData.Reconnect();
+    if(gameData.Reconnect() < 0) {
+        state = State::EndConn;
+        return;
+    }
     gameData.GetRoomInfo(rooms);
     if ((int)rooms.size() < 3) rooms.resize(3);
 

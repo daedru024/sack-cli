@@ -37,6 +37,7 @@ int Conn(const char *servip) {
     }
     
     if(connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
+        if(errno == ECONNREFUSED) return -1;
         err_sys("connect error");
         return -1;
     }

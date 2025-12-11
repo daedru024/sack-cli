@@ -1,7 +1,7 @@
 #include "libcliwrap.hpp"
 
 #define DEBUG
-#define ENDNOW
+//#define ENDNOW
 
 GamePlay& GamePlay::operator=(const GamePlay &other) {
     sockfd = other.sockfd;
