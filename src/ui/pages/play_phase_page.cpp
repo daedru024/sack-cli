@@ -220,6 +220,11 @@ void runPlayPhasePage(
                         revealedCount = 0;
                     }
                 }
+                else if(status == CONN_CLOSED) {
+                    //handle closed connection
+                    state = State::EndConn;
+                    return;
+                }
             }
             else 
             {

@@ -161,7 +161,7 @@ int GamePlay::GetRoomInfo() {
     if (Recv(sockfd, buf) == -2) {
         // keep-alive
         time_t currtime = time(NULL);
-        if (difftime(currtime, lst_conn) >= 50) {
+        if (difftime(currtime, lst_conn) >= 50 && (playerID || !myRoom.locked)) {
             Write(sockfd, "  ", 2);
 #ifdef DEBUG
             printf("Alive msg\n");
@@ -460,6 +460,11 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         buff >> pID >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
         Results.stks[Round()-1][myRoom.n_players-1] = CardsPlayed[myRoom.n_players-1];
         Results.winner[Round()-1] = pID;
+#ifdef DEBUG
+        printf("winner: %d\nstk:", Results.winner[Round()-1]);
+        for(int i=0; i<myRoom.n_players; i++) printf("%d ",Results.stks[Round()-1][i]);
+        printf("\n");
+#endif
         std::pair<int,std::pair<int,int>> ret;
         if(amount <= 0) ret = {npID, {-1, -1}};
         else {
@@ -487,32 +492,14 @@ void GamePlay::SendBid(int amount) {
 // get score
 bool GamePlay::Score() {
     //ws {won[:] values[:]} {score[:]}
-    // char buf[MAXLINE];
-    // while(Recv(sockfd, buf) == -2) ;
-    // buff = std::stringstream(buf);
-    // std::string tmp;
-    // buff >> tmp;
-
-    std::string tmp;
-    if(!ss_empty(buff)){
-        buff >> tmp;
-        if(tmp == "ws"){
-            goto PARSE_DATA;
-        }
-    }
-
-    {
-        char buf[MAXLINE];
-        int n = 0;
-        while ((n = Recv(sockfd, buf)) == -2) ;
-        if (n <= 0) return 0;
+    char buf[MAXLINE];
+    if(ss_empty(buff)) {
+        while(Recv(sockfd, buf) == -2) ;
         buff = std::stringstream(buf);
-        buff >> tmp;
     }
-
-    if(tmp != "ws") return 0;
-
-PARSE_DATA: // added
+    std::string tmp;
+    buff >> tmp;
+    if(tmp != "ws") return Score();
     for(int k=0; k<9; k++) buff >> Results.winner[k] >> Results.stackValue[k];
     for(int k=0; k<myRoom.n_players; k++) buff >> Results.PlayerScore[k];
     return 1;

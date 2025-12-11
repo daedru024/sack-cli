@@ -253,7 +253,7 @@ void runSettlementPage(
             if (currentDisplayRound < (int)gameData.Results.stks.size()) {
                 const auto& currentStack = gameData.Results.stks[currentDisplayRound];
                 for (int i = 0; i < nPlayers; i++) {
-                    int pID = (i - currentDisplayRound + nPlayers) % nPlayers;
+                    int pID = (i + currentDisplayRound) % nPlayers;
 
                     slots[i].nameLabel.set(room.playerNames[pID]);
                    
@@ -264,7 +264,8 @@ void runSettlementPage(
                     slots[i].nameLabel.text.setPosition(slotPos.x + 80.f/2.f, slotPos.y - 25.f);
 
 
-                    int cardID = (pID < (int)currentStack.size()) ? currentStack[pID] : 2; 
+                    //int cardID = (pID < (int)currentStack.size()) ? currentStack[pID] : 2; 
+                    int cardID = (i < (int)currentStack.size()) ? currentStack[i] : 2; 
 
                     int realIndex = std::abs(cardID);
                     if (realIndex > 9) realIndex = 2;

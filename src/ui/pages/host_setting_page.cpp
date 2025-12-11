@@ -116,7 +116,12 @@ void runHostSettingPage(
         //     state = State::RoomInfo;
         //     return;
         // }
-        gameData.isConnected();
+        //gameData.isConnected();
+        if (gameData.GetRoomInfo() == CONN_CLOSED) {
+            reason = EndReason::Timeout;
+            state = State::RoomInfo;
+            return;
+        }
 
         // --------------------------------------------------
         // ② Idle timeout → auto-kick
