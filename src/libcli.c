@@ -11,7 +11,7 @@ int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
 
 int Close(int sockfd) {
     if(shutdown(sockfd, SHUT_WR) == -1) {
-        if(errno == EBADF) return 0;
+        if(errno == EBADF || errno == ENOTCONN) return 0;
         else err_sys("close error");
     }
     return 0;
@@ -37,6 +37,7 @@ int Conn(const char *servip) {
     }
     
     if(connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
+        if(errno == ECONNREFUSED) return -1;
         err_sys("connect error");
         return -1;
     }
@@ -95,11 +96,13 @@ int Recv(int sockfd, char *recvline) {
     }
     if (FD_ISSET(sockfd, &rfds)) {
         ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
-        if (n < 0) err_sys("Recv");
-        else if (n == 0) {
-            //TODO
-            printf("Connection closed\n");
+        if (n < 0) {
+            if(errno == ECONNRESET) return -4096;
+            err_sys("Recv");
         }
+#ifdef DEBUG
+        if (n == 0) printf("Connection closed\n");
+#endif
         recvline[n] = 0;
 #ifdef DEBUG
         printf("Recv: %s\n", recvline);
@@ -109,31 +112,6 @@ int Recv(int sockfd, char *recvline) {
 
     return -1;
 }
-
-// int RecvNB(int sockfd, char *recvline)
-// {
-//     fd_set rfds;
-//     FD_ZERO(&rfds);
-//     FD_SET(sockfd, &rfds);
-
-//     struct timeval tv;
-//     tv.tv_sec = 0;
-//     tv.tv_usec = 0; // 完全 non-blocking
-
-//     int sel = select(sockfd + 1, &rfds, NULL, NULL, &tv);
-//     if (sel <= 0)
-//         return -2;  // no data
-
-//     ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
-//     if (n <= 0)
-//         return -1;
-
-//     recvline[n] = 0;
-// #ifdef DEBUG
-//     printf("RecvNB: %s\n", recvline);
-// #endif
-//     return (int)n;
-// }
 
 void Write(int sockfd, const void *vptr, size_t n) {
     size_t rem;

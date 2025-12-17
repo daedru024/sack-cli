@@ -38,7 +38,7 @@ namespace RInfo {
     constexpr float SELECTED_Y   = PANEL_Y + 20.f;
     constexpr float PASS_LABEL_Y = PANEL_Y + 110.f;
     constexpr float PASS_BOX_Y   = PANEL_Y + 150.f;
-    constexpr float ERROR_Y      = PANEL_Y + 210.f;
+    constexpr float ERROR_Y      = PANEL_Y + 220.f;
     constexpr float JOIN_BTN_Y   = PANEL_Y + 280.f;
 
     constexpr float EXIT_W       = 120.f;
@@ -71,7 +71,10 @@ void runRoomInfoPage(
     loadFontSafe(font);
 
     // ---- 初始連線 + 拿房間資訊（用原本 blocking 版，確保一開始有資料）----
-    gameData.Reconnect();
+    if(gameData.Reconnect() < 0) {
+        state = State::EndConn;
+        return;
+    }
     gameData.GetRoomInfo(rooms);
     if ((int)rooms.size() < 3) rooms.resize(3);
 
@@ -283,7 +286,7 @@ void runRoomInfoPage(
 
         // ---- Timer ----
         std::ostringstream oss;
-        oss << "Time left: " << (int)remain << "s";
+        oss << (int)remain << " seconds left";
         sf::Text timerTx = mkCenterText(font, oss.str(), 26, sf::Color::White);
         timerTx.setOutlineColor(sf::Color::Black);
         timerTx.setOutlineThickness(2.f);

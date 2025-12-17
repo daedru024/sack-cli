@@ -2,8 +2,11 @@
 #include "ui/common/ui_common.hpp"
 #include "ui/common/ui_background.hpp"
 #include "ui/widgets/hand_panel.hpp"
+#include "ui/widgets/label.hpp"
+#include "ui/widgets/button.hpp"
 #include "libcliwrap.hpp"
 #include "room.hpp"
+
 
 #include <sstream>
 #include <iostream>
@@ -57,30 +60,64 @@ void runDiscardPage(
     targetHand.setBlindMode(true); 
 
     // 生成假手牌 (10張)
-    std::vector<int> dummyHand(10, 0); 
+    std::vector<int> dummyHand(10, -1);  // 0 -> -1
     targetHand.setHand(dummyHand, font);
 
-    // 設定牌背顏色 (目標玩家顏色) 並隱藏數字
+    // 設定牌背顏色 (目標玩家顏色)
     sf::Color backColor = sf::Color(100, 100, 100);
     if (targetColorIdx >= 0 && targetColorIdx < (int)PLAYER_COLORS.size()) {
         backColor = PLAYER_COLORS[targetColorIdx];
     }
 
     for (auto& c : targetHand.cards) {
+        c.isTextureMode = false;
         c.rect.setFillColor(backColor);
-        c.text.setString(""); 
+        // c.text.setString(""); 
     }
 
     // 3. UI 元件
-    string titleStr = "Discard Phase (Pick Next Player's Card)";
-    Label title(&font, titleStr, 400.f, 40.f, 26,
-                sf::Color::White, sf::Color::Black, 4);
+    Label title(&font, "Discard Phase", 400.f, 30.f, 40, sf::Color::Yellow, sf::Color::Black, 2.f);
     title.centerText();
+
+    Label broadcastLabel(&font, "", 400, 110, 32, sf::Color::Black);
+    broadcastLabel.text.setOutlineColor(sf::Color::White);
+    broadcastLabel.text.setOutlineThickness(4);
+
+    sf::RectangleShape broadcastPanel;
+    broadcastPanel.setFillColor(sf::Color(50, 45, 40, 180));
+    broadcastPanel.setOutlineColor(sf::Color(255, 255, 255, 120)); 
+    broadcastPanel.setOutlineThickness(1.f);
+
+    auto updateBroadcast = [&](std::string msg) {
+        if (msg.empty()) {
+            broadcastLabel.set("");
+            broadcastPanel.setSize({0, 0});
+            return;
+        }
+
+        broadcastLabel.set(msg);
+        
+        sf::FloatRect textBounds = broadcastLabel.text.getLocalBounds();
+        
+        float paddingX = 40.f;
+        float paddingY = 20.f;
+        float width = textBounds.width + paddingX * 2.f;
+        float height = textBounds.height + paddingY * 2.f;
+        
+        broadcastPanel.setSize({width, height});
+        broadcastPanel.setOrigin(width / 2.f, height / 2.f);
+        broadcastPanel.setPosition(400.f, 115.f); 
+        
+        broadcastLabel.text.setPosition(400.f, 115.f);
+        broadcastLabel.centerText();
+    };
+
+    updateBroadcast("Pick Next Player's Card");
 
     sf::Clock phaseTimer;
 
     Button confirmBtn(&font, "CONFIRM",
-                      400.f, 520.f, 160.f, 50.f, true); 
+                      400.f, 530.f, 160.f, 50.f, true); 
 
     bool hasCommitted = false;
     bool gotDiscarded = false;
@@ -161,12 +198,16 @@ void runDiscardPage(
 
         title.draw(window);
         
-        
+        if (broadcastPanel.getSize().x > 0) {
+            window.draw(broadcastPanel);
+        }
+        broadcastLabel.draw(window);
+
         targetHand.draw(window);
 
         {
             std::ostringstream oss;
-            oss << "Time left: " << (int)remain << "s";
+            oss << (int)remain << " seconds left";
             sf::Text t = mkCenterText(font, oss.str(), 26, sf::Color::White);
             t.setOutlineColor(sf::Color::Black);
             t.setOutlineThickness(2.f);

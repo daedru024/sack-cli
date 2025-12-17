@@ -1,7 +1,7 @@
 #include "libcliwrap.hpp"
 
 #define DEBUG
-#define ENDNOW
+//#define ENDNOW
 
 GamePlay& GamePlay::operator=(const GamePlay &other) {
     sockfd = other.sockfd;
@@ -71,10 +71,11 @@ int GamePlay::ChooseColor(int c) {
     Write(sockfd, ss.str().c_str(), ss.str().length());
     //get broadcasted room info
     char buf[MAXLINE];
+    int k;
     while(Recv(sockfd, buf) == -2) ;
     lst_conn = time(NULL);
-    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
-        return GAME_START;
+    if((k = GetRoomInfo(roomID, myRoom, buf)) != 0) 
+        return k;
     if(myRoom.colors[playerID] != c) 
         return -1;
     return 0;
@@ -157,10 +158,11 @@ int GamePlay::GetRoomInfo(int rid, Room& room, std::string buf) {
 // get room info when already in room
 int GamePlay::GetRoomInfo() {
     char buf[MAXLINE];
-    if (Recv(sockfd, buf) == -2) {
+    int k;
+    if ((k = Recv(sockfd, buf)) == -2) {
         // keep-alive
         time_t currtime = time(NULL);
-        if (difftime(currtime, lst_conn) >= 50) {
+        if (difftime(currtime, lst_conn) >= 80 && (playerID || !myRoom.locked)) {
             Write(sockfd, "  ", 2);
 #ifdef DEBUG
             printf("Alive msg\n");
@@ -169,6 +171,7 @@ int GamePlay::GetRoomInfo() {
         }
         return 0;
     }
+    if(k == CONN_CLOSED) return k;
     if (strlen(buf) == 0)
         return CONN_CLOSED;
     lst_conn = time(NULL);
@@ -225,8 +228,9 @@ int GamePlay::LockRoom() {
     char buf[MAXLINE];
     while(Recv(sockfd, buf) == -2);
     lst_conn = time(NULL);
-    if(GetRoomInfo(roomID, myRoom, buf) == GAME_START) 
-        return GAME_START;
+    int k;
+    if((k = GetRoomInfo(roomID, myRoom, buf)) != 0) 
+        return k;
     if(myRoom.locked == false) {
         if(myRoom.n_players < 3)
             return NOT_ENOUGH_PLAYERS;
@@ -278,6 +282,7 @@ int GamePlay::GameStart() {
     lst_conn = time(NULL);
     CardsPlayed = std::vector<int>(myRoom.n_players, -1);
     MakeUp = std::vector<int>(myRoom.n_players);
+    Results = Scores(myRoom.n_players);
     switch(myRoom.n_players) {
     case 3:
         MakeUp = {3, 6, 0};
@@ -332,22 +337,18 @@ void GamePlay::Rabbit(int r) {
 }
 
 int GamePlay::RecvPlay() {
-    //TODO
     //ri {card}
     //c {PlayerID} {code}
     //ap {id}
     char buf[MAXLINE];
-    time_t tm = time(NULL);
-#ifdef DEBUG
-    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
-#endif
+    //time_t tm = time(NULL);
     if(ss_empty(buff)) {
         int n = Recv(sockfd, buf);
         if(n == -2) {
-            if(difftime(tm, lst_conn) >= 50) {
-                Write(sockfd, "  ", 2);
-                lst_conn = tm;
-            }
+            //if(difftime(tm, lst_conn) >= 50) {
+            //    Write(sockfd, "  ", 2);
+            //    lst_conn = tm;
+            //}
             return -2;
         }
         else if(n == 0) {
@@ -356,19 +357,20 @@ int GamePlay::RecvPlay() {
 #endif
             return CONN_CLOSED;
         }
-        lst_conn = tm;
+        //lst_conn = tm;
         buff = std::stringstream(buf);
     }
     std::string tmp;
     int pID, cd;
-    buff >> tmp >> pID;
+    buff >> tmp;
     if(tmp == "ap") {
         //autoplay or end connection
-        //TODO
+        buff >> pID;
         myRoom.playerNames[pID] += " (auto)";
         return AUTO_PLAYER;
     }
     else if(tmp == "ri") {
+        buff >> pID;
         if(MASKUc.to_ulong() != 0) return -1;
         MASKUc[pID] = 1;
         removedCardId = pID;
@@ -379,6 +381,7 @@ int GamePlay::RecvPlay() {
         return PlayNext();
     }
     else if(tmp != "c") return -2;
+    buff >> pID;
     if(!ss_empty(buff)) buff >> cd;
     //not pID's round, ignore
     if(cd == 0 || cd == -1) {
@@ -408,16 +411,13 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //be {PlayerID} {amount} {sPlayer}
     //ap {PlayerID}
     char buf[MAXLINE];
-    time_t tm = time(NULL);
-#ifdef DEBUG
-    //if(!ss_empty(buff)) printf("%s", buff.str().c_str());
-#endif
+    //time_t tm = time(NULL);
     if(ss_empty(buff)) {
         if(Recv(sockfd, buf) == -2) {
-            if(difftime(tm, lst_conn) >= 50) {
-                Write(sockfd, "  ", 2);
-                lst_conn = tm;
-            }
+            //if(difftime(tm, lst_conn) >= 50) {
+                //Write(sockfd, "  ", 2);
+                //lst_conn = tm;
+            //}
             return {-2,{-2,-2}};
         }
         else if(strlen(buf) == 0) {
@@ -426,26 +426,27 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
 #endif
             return {CONN_CLOSED, {-1,-1}};
         }
-        lst_conn = tm;
+        //lst_conn = tm;
         buff = std::stringstream(buf);
     }
     std::string tmp;
     int pID;
-    buff >> tmp >> pID;
+    buff >> tmp;
     if(tmp == "ap") {
         //auto player
-        //TODO
+        buff >> pID;
         myRoom.playerNames[pID] += " (auto)";
         return {AUTO_PLAYER, {-1,-1}};
     }
     int amount, npID;
     if(tmp == "b") {
-        buff >> amount >> npID;
+        buff >> pID >> amount >> npID;
         if(npID>=0) {
+            buff >> CardsPlayed[played];
             if(amount>0) lst_val = amount;
             else if(amount == 0) {
                 //abandoned bid
-                buff >> CardsPlayed[played];
+                Results.stks[Round()-1][played] = CardsPlayed[played];
                 if(pID == playerID) {
                     rem_money += MakeUp[played];
                     lst_bid = 0;
@@ -458,7 +459,14 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
         return {npID, {pID, amount}};
     }
     if(tmp == "be") {
-        buff >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
+        buff >> pID >> amount >> npID >> CardsPlayed[myRoom.n_players-1];
+        Results.stks[Round()-1][myRoom.n_players-1] = CardsPlayed[myRoom.n_players-1];
+        Results.winner[Round()-1] = pID;
+#ifdef DEBUG
+        printf("winner: %d\nstk:", Results.winner[Round()-1]);
+        for(int i=0; i<myRoom.n_players; i++) printf("%d ",Results.stks[Round()-1][i]);
+        printf("\n");
+#endif
         std::pair<int,std::pair<int,int>> ret;
         if(amount <= 0) ret = {npID, {-1, -1}};
         else {
@@ -481,6 +489,22 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
 void GamePlay::SendBid(int amount) {
     if (amount != 0 && (amount > rem_money || amount < lst_val)) return;
     Bid(sockfd, playerID, amount, rem_money);
+}
+
+// get score
+bool GamePlay::Score() {
+    //ws {won[:] values[:]} {score[:]}
+    char buf[MAXLINE];
+    if(ss_empty(buff)) {
+        while(Recv(sockfd, buf) == -2) ;
+        buff = std::stringstream(buf);
+    }
+    std::string tmp;
+    buff >> tmp;
+    if(tmp != "ws") return Score();
+    for(int k=0; k<9; k++) buff >> Results.winner[k] >> Results.stackValue[k];
+    for(int k=0; k<myRoom.n_players; k++) buff >> Results.PlayerScore[k];
+    return 1;
 }
 
 bool GamePlay::ss_empty(const std::stringstream& ss) { 

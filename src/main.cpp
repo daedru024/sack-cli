@@ -1,6 +1,6 @@
 #include "app/app.hpp"
 
-const std::string servip = "127.0.0.1";
+std::string servip = "127.0.0.1";
 
 std::vector<Room> rooms;
 GamePlay gameData;
@@ -11,8 +11,14 @@ int currentRoomIndex = -1;
 bool UI_TEST_MODE = false;
 
 
-int main()
+int main(int argc, char* argv[])
 {
+    if(argc != 2) {
+        std::cout << "[Warning] Assuming server IP " << servip << std::endl;
+        std::cout << "          To specify IP, type ./main <serverIP>" << std::endl;
+    }
+    else servip = std::string(argv[1]);
+    
     initBackground();
 
     sf::RenderWindow window(
@@ -21,6 +27,18 @@ int main()
         sf::Style::Default
     );
     window.setVerticalSyncEnabled(true);
+
+
+    bool texturesLoaded = false;
+    if (GameCardResources::getInstance().loadTextures("assets/")) {
+        std::cout << "[Info] Card textures loaded from 'assets/'" << std::endl;
+        texturesLoaded = true;
+    } 
+
+    if (!texturesLoaded) {
+        std::cerr << "[Warning] Failed to load card textures! Cards will display as red blocks." << std::endl;
+        std::cerr << "          Please ensure 'card_0.png' through 'card_9.png' are in 'sack-cli/assets/'." << std::endl;
+    }
 
     State state = State::UsernameInput;
     EndReason reason = EndReason::None;
@@ -81,6 +99,10 @@ int main()
                 runPlayPhasePage(window, state, reason, username);
                 break;
 
+            case State::Settlement:
+                runSettlementPage(window, state, username);
+                break;
+                
             case State::ReEstablish:
                 state = State::RoomInfo;
                 break;

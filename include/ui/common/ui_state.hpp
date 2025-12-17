@@ -2,14 +2,14 @@
 
 enum class State {
     UsernameInput,
+    Rules,
     RoomInfo,
+    HostSetting,
     InRoom,
     GameStart,
-    Game,
     Discard,
-    Play,
-    HostSetting,
-    Rules,
+    Game,
+    Settlement,
     ReEstablish,
     EndConn
 };

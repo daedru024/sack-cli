@@ -6,7 +6,7 @@
 extern sf::View uiView;
 extern void drawBackground(sf::RenderWindow&); // background繪製函式
 extern GamePlay gameData;
-extern const std::string servip;
+extern std::string servip;
 extern bool UI_TEST_MODE;
 
 
@@ -250,12 +250,6 @@ void runUsernamePage(
                 error.set("Connecting to server...");
                 error.centerText();
 
-                // ⭐⭐⭐ UI TEST MODE：不連 server，直接進入房間清單 ⭐⭐⭐
-                // if (UI_TEST_MODE) {
-                //     gameData = GamePlay();   // no socket
-                //     state = State::RoomInfo;
-                //     return;
-                // }
 
                 // 3. 嘗試連線
                 GamePlay play(servip.c_str(), username);
@@ -267,9 +261,9 @@ void runUsernamePage(
                 //}
                 //else {
                     // 連線成功
-                    gameData = play;
-                    state = State::RoomInfo;
-                    return;
+                gameData = play;
+                state = State::RoomInfo;
+                return;
                 //}
             } // end tryConnect
         } // end while(pollEvent)
