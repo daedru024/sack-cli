@@ -100,7 +100,7 @@ void runRulesPage(sf::RenderWindow& window, State& state)
         "[ TIME LIMITS ]\n"
         "   Lobby:       60s to join a room.\n"
         "   Room:       30s to ready up.\n"
-        "   Discard:    45s to discard another player's card.\n"
+        "   Discard:    30s to discard another player's card.\n"
         "   Play/Bid:  60s to play or bid.\n\n"
 
         "[ ROOM LIMITS ]\n"

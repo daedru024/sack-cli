@@ -117,7 +117,13 @@ void runRoomInfoPage(
 
             case ROOM_FULL:     errorMsg = "Room full."; break;
             case ROOM_LOCKED:   errorMsg = "Room locked."; break;
-            case ROOM_PRIVATE:  errorMsg = "Room is private."; break;
+            case ROOM_PRIVATE:
+                rooms[idx].isPrivate = true;
+                needsKey = true;
+                errorMsg = "Please enter password.";
+                keyInput.clear();
+                wrongKeyCount = 0;
+                break;
 
             case WRONG_PIN:
                 wrongKeyCount++;
@@ -245,11 +251,20 @@ void runRoomInfoPage(
                     if (tryJoin(selected)) return;
                 }
 
-                if (!errorMsg.empty() &&
-                    (e.type == sf::Event::TextEntered ||
-                     e.type == sf::Event::KeyPressed))
+                if (!errorMsg.empty())
                 {
-                    errorMsg.clear();
+                    bool isEnterKey = (e.type == sf::Event::KeyPressed && 
+                                    e.key.code == sf::Keyboard::Enter);
+                                    
+                    bool isEnterChar = (e.type == sf::Event::TextEntered && 
+                                    (e.text.unicode == 13 || e.text.unicode == 10));
+
+                    // 只有當事件是「文字輸入」或「按鍵按下」，且「不是 Enter」時，才清除訊息
+                    if ((e.type == sf::Event::TextEntered || e.type == sf::Event::KeyPressed) && 
+                        !isEnterKey && !isEnterChar)
+                    {
+                        errorMsg.clear();
+                    }
                 }
             }
 
