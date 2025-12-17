@@ -6,7 +6,7 @@
 extern sf::View uiView;
 extern void drawBackground(sf::RenderWindow&); // background繪製函式
 extern GamePlay gameData;
-extern const std::string servip;
+extern std::string servip;
 extern bool UI_TEST_MODE;
 
 
@@ -261,9 +261,9 @@ void runUsernamePage(
                 //}
                 //else {
                     // 連線成功
-                    gameData = play;
-                    state = State::RoomInfo;
-                    return;
+                gameData = play;
+                state = State::RoomInfo;
+                return;
                 //}
             } // end tryConnect
         } // end while(pollEvent)

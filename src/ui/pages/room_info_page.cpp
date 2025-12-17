@@ -286,7 +286,7 @@ void runRoomInfoPage(
 
         // ---- Timer ----
         std::ostringstream oss;
-        oss << "Time left: " << (int)remain << "s";
+        oss << (int)remain << " seconds left";
         sf::Text timerTx = mkCenterText(font, oss.str(), 26, sf::Color::White);
         timerTx.setOutlineColor(sf::Color::Black);
         timerTx.setOutlineThickness(2.f);

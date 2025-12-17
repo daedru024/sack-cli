@@ -162,7 +162,7 @@ int GamePlay::GetRoomInfo() {
     if ((k = Recv(sockfd, buf)) == -2) {
         // keep-alive
         time_t currtime = time(NULL);
-        if (difftime(currtime, lst_conn) >= 50 && (playerID || !myRoom.locked)) {
+        if (difftime(currtime, lst_conn) >= 80 && (playerID || !myRoom.locked)) {
             Write(sockfd, "  ", 2);
 #ifdef DEBUG
             printf("Alive msg\n");
@@ -341,14 +341,14 @@ int GamePlay::RecvPlay() {
     //c {PlayerID} {code}
     //ap {id}
     char buf[MAXLINE];
-    time_t tm = time(NULL);
+    //time_t tm = time(NULL);
     if(ss_empty(buff)) {
         int n = Recv(sockfd, buf);
         if(n == -2) {
-            if(difftime(tm, lst_conn) >= 50) {
-                Write(sockfd, "  ", 2);
-                lst_conn = tm;
-            }
+            //if(difftime(tm, lst_conn) >= 50) {
+            //    Write(sockfd, "  ", 2);
+            //    lst_conn = tm;
+            //}
             return -2;
         }
         else if(n == 0) {
@@ -357,7 +357,7 @@ int GamePlay::RecvPlay() {
 #endif
             return CONN_CLOSED;
         }
-        lst_conn = tm;
+        //lst_conn = tm;
         buff = std::stringstream(buf);
     }
     std::string tmp;
@@ -411,13 +411,13 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
     //be {PlayerID} {amount} {sPlayer}
     //ap {PlayerID}
     char buf[MAXLINE];
-    time_t tm = time(NULL);
+    //time_t tm = time(NULL);
     if(ss_empty(buff)) {
         if(Recv(sockfd, buf) == -2) {
-            if(difftime(tm, lst_conn) >= 50) {
-                Write(sockfd, "  ", 2);
-                lst_conn = tm;
-            }
+            //if(difftime(tm, lst_conn) >= 50) {
+                //Write(sockfd, "  ", 2);
+                //lst_conn = tm;
+            //}
             return {-2,{-2,-2}};
         }
         else if(strlen(buf) == 0) {
@@ -426,7 +426,7 @@ std::pair<int,std::pair<int,int>> GamePlay::RecvBid() {
 #endif
             return {CONN_CLOSED, {-1,-1}};
         }
-        lst_conn = tm;
+        //lst_conn = tm;
         buff = std::stringstream(buf);
     }
     std::string tmp;

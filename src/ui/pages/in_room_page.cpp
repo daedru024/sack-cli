@@ -477,7 +477,7 @@ void runInRoomPage(
             if (remain < 0) remain = 0;
 
             sf::Text idleText = mkCenter(
-                font, "Auto-kick in: " + std::to_string((int)remain) + "s",
+                font, std::to_string((int)remain) + " seconds left",
                 26, sf::Color::White);
             idleText.setOutlineThickness(2);
             idleText.setOutlineColor(sf::Color::Black);

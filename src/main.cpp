@@ -1,6 +1,6 @@
 #include "app/app.hpp"
 
-const std::string servip = "127.0.0.1";
+std::string servip = "127.0.0.1";
 
 std::vector<Room> rooms;
 GamePlay gameData;
@@ -11,8 +11,14 @@ int currentRoomIndex = -1;
 bool UI_TEST_MODE = false;
 
 
-int main()
+int main(int argc, char* argv[])
 {
+    if(argc != 2) {
+        std::cout << "[Warning] Assuming server IP " << servip << std::endl;
+        std::cout << "          To specify IP, type ./main <serverIP>" << std::endl;
+    }
+    else servip = std::string(argv[1]);
+    
     initBackground();
 
     sf::RenderWindow window(

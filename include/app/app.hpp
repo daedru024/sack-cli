@@ -50,7 +50,7 @@
 extern std::vector<Room> rooms;
 extern GamePlay gameData;
 extern int currentRoomIndex;
-extern const std::string servip;
+extern std::string servip;
 extern const float UI_WIDTH;
 extern const float UI_HEIGHT;
 extern bool UI_TEST_MODE;

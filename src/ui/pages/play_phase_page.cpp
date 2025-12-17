@@ -143,7 +143,7 @@ void runPlayPhasePage(
 
     // --- 4. 文字標籤 ---
     // 標題文字
-    std::string roundStr = "Play Phase - Round " + std::to_string(gameData.Round());
+    std::string roundStr = "Round " + std::to_string(gameData.Round());
     Label titleLabel(&font, roundStr, 400, 30, 32, sf::Color::Yellow, sf::Color::Black, 2.f);
     
     auto updateTitle = [&](std::string text) {
@@ -250,7 +250,7 @@ void runPlayPhasePage(
 
                     if (playedCount == nPlayers) {
                         isBiddingPhase = true;
-                        lastActionMsg = "Bidding Phase Start";
+                        lastActionMsg = "Auction Start";
                         playBtn.setDisabled(true); 
                         currentHighBid = 0; 
                         hasSubmitted = false;
@@ -402,7 +402,7 @@ void runPlayPhasePage(
                 lastActionMsg = "New Round Start"; 
                 updateBroadcast(lastActionMsg);
 
-                std::string newTitle = "Play Phase - Round " + std::to_string(gameData.Round());
+                std::string newTitle = "Round " + std::to_string(gameData.Round());
                 updateTitle(newTitle);
             }
         }
@@ -413,7 +413,7 @@ void runPlayPhasePage(
                     bidPanel.setVisible(true);
                     int minBid = (currentHighBid == 0) ? 1 : currentHighBid + 1;
                     bidPanel.setRange(minBid, gameData.Money());
-                    updateBroadcast(lastActionMsg + "\nYour turn to Bid");
+                    updateBroadcast(lastActionMsg + "\nYour turn to bid");
                 } else {
                     bidPanel.setVisible(false);
                     updateBroadcast(lastActionMsg);
@@ -421,13 +421,18 @@ void runPlayPhasePage(
             }
             else {
                 bidPanel.setVisible(false);
-                updateBroadcast(isMyTurn ? "Your turn play card" : lastActionMsg);
+                updateBroadcast(isMyTurn ? "Your turn. Play a card" : lastActionMsg);
             }
 
             if (isMyTurn) {
-                int remain = (isBiddingPhase ? 60 : 45) - (int)stepTimer.getElapsedTime().asSeconds();
-                if (remain < 0) remain = 0;
-                timerLabel.set("Time left - " + std::to_string(remain) + " s");
+                int remain = 60 - (int)stepTimer.getElapsedTime().asSeconds();
+                if (remain < 0) {
+                    remain = 0;
+                    gameData.EndConn();
+                    state = State::EndConn;
+                    return;
+                }
+                timerLabel.set(std::to_string(remain) + " seconds left");
                 timerLabel.text.setFillColor(remain <= 10 ? sf::Color::Red : sf::Color::White);
                 timerLabel.centerText();
             } else {

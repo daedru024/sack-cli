@@ -207,7 +207,7 @@ void runDiscardPage(
 
         {
             std::ostringstream oss;
-            oss << "Time left: " << (int)remain << "s";
+            oss << (int)remain << " seconds left";
             sf::Text t = mkCenterText(font, oss.str(), 26, sf::Color::White);
             t.setOutlineColor(sf::Color::Black);
             t.setOutlineThickness(2.f);
