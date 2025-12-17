@@ -250,7 +250,7 @@ void runPlayPhasePage(
 
                     if (playedCount == nPlayers) {
                         isBiddingPhase = true;
-                        lastActionMsg = "Auction Start";
+                        lastActionMsg = "Auction Started";
                         playBtn.setDisabled(true); 
                         currentHighBid = 0; 
                         hasSubmitted = false;
@@ -399,7 +399,7 @@ void runPlayPhasePage(
                     sf::Vector2f size = s.widget.rect.getSize();
                     s.moneyLabel.text.setPosition(pos.x + size.x/2.f, pos.y - 20.f);
                 }
-                lastActionMsg = "New Round Start"; 
+                lastActionMsg = "New Round Started"; 
                 updateBroadcast(lastActionMsg);
 
                 std::string newTitle = "Round " + std::to_string(gameData.Round());
