@@ -1,6 +1,6 @@
 #include "libcliwrap.hpp"
 
-#define DEBUG
+//#define DEBUG
 //#define ENDNOW
 
 GamePlay& GamePlay::operator=(const GamePlay &other) {
