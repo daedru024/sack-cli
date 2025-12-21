@@ -1,22 +1,31 @@
-#ifndef __lib_cli
+﻿#ifndef __lib_cli
 #define __lib_cli
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <sys/select.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
-#include <sys/select.h>
+#ifdef _WIN32
+    #include <winsock2.h>
+    #include <ws2tcpip.h> // 提供 inet_pton
+    
+    // Windows 64位元環境定義 ssize_t
+    #include <BaseTsd.h>
+    typedef SSIZE_T ssize_t;
+#else
+    // Linux / Mac 環境
+    #include <sys/select.h>
+    #include <sys/socket.h>
+    #include <sys/types.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+    #include <sys/time.h>
+    #include <unistd.h>
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 #include <stdarg.h>
 

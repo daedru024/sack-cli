@@ -1,8 +1,31 @@
-build
-out
-.cache
-.idea
-.vs
-.vscode
+# --- Build Directories ---
+build/
+out/
+bin/
+
+# --- Windows Executables & Libraries ---
+*.exe
+*.dll
+*.lib
+*.obj
+
+# --- Debugging Files  ---
+*.pdb
+*.ilk
+*.exp
+
+# --- IDE / Editor Settings ---
+.vscode/
+.vs/
+.idea/
+*.user
+
+# --- OS Files ---
 .DS_Store
+Thumbs.db
+
+# --- Legacy/Manual build output ---
 main
+sackServ
+apServ
+sackCli

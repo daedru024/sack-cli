@@ -1,6 +1,43 @@
-#include "libcli.h"
+﻿#include "libcli.h"
 
-#define DEBUG
+//#define DEBUG
+
+// --- Windows 相容性巨集與錯誤處理 ---
+#ifdef _WIN32
+    // 對應函式
+    #define close closesocket
+    // Windows socket 不支援 write，改用 send
+    #define write(s, buf, len) send(s, (const char*)buf, (int)len, 0)
+    // Windows 沒有 bzero，改用標準 memset
+    #define bzero(b, len) memset(b, 0, len)
+    
+    // Shutdown 模式對應
+    #ifndef SHUT_WR
+        #define SHUT_WR SD_SEND
+    #endif
+    #ifndef SHUT_RD
+        #define SHUT_RD SD_RECEIVE
+    #endif
+    #ifndef SHUT_RDWR
+        #define SHUT_RDWR SD_BOTH
+    #endif
+
+    // 錯誤碼對應 (將 errno 對應到 WSAGetLastError)
+    #define GET_ERROR WSAGetLastError()
+    #define ERR_ECONNREFUSED WSAECONNREFUSED
+    #define ERR_EBADF WSAENOTSOCK
+    #define ERR_ENOTCONN WSAENOTCONN
+    #define ERR_EINTR WSAEINTR
+    #define ERR_ECONNRESET WSAECONNRESET
+#else
+    // Linux 保持原樣
+    #define GET_ERROR errno
+    #define ERR_ECONNREFUSED ECONNREFUSED
+    #define ERR_EBADF EBADF
+    #define ERR_ENOTCONN ENOTCONN
+    #define ERR_EINTR EINTR
+    #define ERR_ECONNRESET ECONNRESET
+#endif
 
 int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
     char buf[MAXLINE];
@@ -18,6 +55,19 @@ int Close(int sockfd) {
 }
 
 int Conn(const char *servip) {
+    // Windows 必須先初始化 Winsock
+    #ifdef _WIN32
+    static int wsa_initialized = 0;
+    if (!wsa_initialized) {
+        WSADATA wsaData;
+        if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+            err_sys("WSAStartup error");
+            return -1;
+        }
+        wsa_initialized = 1;
+    }
+    #endif
+
     int sockfd;
     struct sockaddr_in servaddr;
 
@@ -38,7 +88,7 @@ int Conn(const char *servip) {
     
     if(connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
         if(errno == ECONNREFUSED) return -1;
-        err_sys("connect error");
+        err_sys("connect error"); 
         return -1;
     }
     

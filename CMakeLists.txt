@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 3.28)
 project(CMakeSFMLProject LANGUAGES C CXX)
 
+# --- 強制 MSVC 使用 UTF-8 編碼 ---
+if(MSVC)
+    add_compile_options(/utf-8)
+endif()
+# ------------------------------------------
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 
@@ -42,13 +48,33 @@ add_executable(main
 )
 
 target_include_directories(main PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(main PRIVATE sfml-graphics libcliwrap)
+
+# 根據平台連結不同的函式庫
+if(WIN32)
+    # Windows 需要連結 ws2_32 (Winsock)
+    target_link_libraries(main PRIVATE sfml-graphics sfml-audio sfml-network sfml-window sfml-system libcliwrap ws2_32)
+else()
+    # Linux/Mac 不需要 ws2_32
+    target_link_libraries(main PRIVATE sfml-graphics sfml-audio sfml-network sfml-window sfml-system libcliwrap)
+endif()
+
 target_compile_features(main PRIVATE cxx_std_17)
 
 
+set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
+set(CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.txt")
+
 add_custom_command(TARGET main POST_BUILD
+
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:main> ${CMAKE_SOURCE_DIR}/$<TARGET_FILE_NAME:main>
-    COMMENT "Copying built executable to source root"
+    
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${ASSETS_DIR} $<TARGET_FILE_DIR:main>/assets
+
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${FONTS_DIR} $<TARGET_FILE_DIR:main>/fonts
+    
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CONFIG_FILE} $<TARGET_FILE_DIR:main>/config.txt
+
+    COMMENT "Copying executable, assets, and config to build directory"
 )
 
 if(WIN32)

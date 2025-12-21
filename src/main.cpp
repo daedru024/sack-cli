@@ -1,4 +1,6 @@
 #include "app/app.hpp"
+#include <fstream>
+#include <algorithm> 
 
 std::string servip = "127.0.0.1";
 
@@ -13,11 +15,33 @@ bool UI_TEST_MODE = false;
 
 int main(int argc, char* argv[])
 {
-    if(argc != 2) {
-        std::cout << "[Warning] Assuming server IP " << servip << std::endl;
-        std::cout << "          To specify IP, type ./main <serverIP>" << std::endl;
+    if(argc == 2) {
+        // 如果有指令參數 (./main 172.x.x.x)，優先使用
+        servip = std::string(argv[1]);
+        std::cout << "[Info] Using IP from command line: " << servip << std::endl;
     }
-    else servip = std::string(argv[1]);
+    else {
+        // 如果沒有參數，嘗試讀取 config.txt
+        std::ifstream configFile("config.txt");
+        if (configFile.is_open()) {
+            std::string line;
+            if (std::getline(configFile, line) && !line.empty()) {
+                // 去除前後可能的空白或換行符號
+                line.erase(0, line.find_first_not_of(" \t\n\r"));
+                line.erase(line.find_last_not_of(" \t\n\r") + 1);
+                
+                servip = line;
+                std::cout << "[Info] Read server IP from config.txt: " << servip << std::endl;
+            }
+            configFile.close();
+        }
+        else {
+            std::cout << "[Warning] config.txt not found. Using default IP: " << servip << std::endl;
+        }
+    }
+    
+    gameData.servip = servip; 
+
     
     initBackground();
 
