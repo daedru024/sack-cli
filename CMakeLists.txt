@@ -62,6 +62,7 @@ target_compile_features(main PRIVATE cxx_std_17)
 
 
 set(ASSETS_DIR "${CMAKE_SOURCE_DIR}/assets")
+set(FONTS_DIR "${CMAKE_SOURCE_DIR}/fonts")
 set(CONFIG_FILE "${CMAKE_SOURCE_DIR}/config.txt")
 
 add_custom_command(TARGET main POST_BUILD
