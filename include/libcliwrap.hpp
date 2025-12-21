@@ -27,16 +27,14 @@
 
 class GamePlay {
     int sockfd, playerID, rem_money, roomID, color, played, lst_val, lst_bid;
-    std::string UserName;
+    std::string servip, UserName;
     std::bitset<10> MASKUc, MASKSt;
     time_t lst_conn;
 public:
     Room myRoom;
     int removedCardId = -1;
-    //int startFlag = 0;
     std::vector<int> MakeUp, CardsPlayed;
     std::stringstream buff;
-    std::string servip;
 
     struct Scores {
         std::vector<int> stackValue;

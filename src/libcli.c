@@ -2,16 +2,11 @@
 
 //#define DEBUG
 
-// --- Windows 相容性巨集與錯誤處理 ---
 #ifdef _WIN32
-    // 對應函式
     #define close closesocket
-    // Windows socket 不支援 write，改用 send
     #define write(s, buf, len) send(s, (const char*)buf, (int)len, 0)
-    // Windows 沒有 bzero，改用標準 memset
     #define bzero(b, len) memset(b, 0, len)
     
-    // Shutdown 模式對應
     #ifndef SHUT_WR
         #define SHUT_WR SD_SEND
     #endif
@@ -22,7 +17,6 @@
         #define SHUT_RDWR SD_BOTH
     #endif
 
-    // 錯誤碼對應 (將 errno 對應到 WSAGetLastError)
     #define GET_ERROR WSAGetLastError()
     #define ERR_ECONNREFUSED WSAECONNREFUSED
     #define ERR_EBADF WSAENOTSOCK
@@ -30,7 +24,6 @@
     #define ERR_EINTR WSAEINTR
     #define ERR_ECONNRESET WSAECONNRESET
 #else
-    // Linux 保持原樣
     #define GET_ERROR errno
     #define ERR_ECONNREFUSED ECONNREFUSED
     #define ERR_EBADF EBADF
@@ -48,15 +41,14 @@ int Bid(int sockfd, int PlayerID, int amount, int rem_money) {
 
 int Close(int sockfd) {
     if(shutdown(sockfd, SHUT_WR) == -1) {
-        if(errno == EBADF || errno == ENOTCONN) return 0;
+        if(GET_ERROR == ERR_EBADF || GET_ERROR == ERR_ENOTCONN) return 0;
         else err_sys("close error");
     }
     return 0;
 }
 
 int Conn(const char *servip) {
-    // Windows 必須先初始化 Winsock
-    #ifdef _WIN32
+#ifdef _WIN32
     static int wsa_initialized = 0;
     if (!wsa_initialized) {
         WSADATA wsaData;
@@ -66,7 +58,7 @@ int Conn(const char *servip) {
         }
         wsa_initialized = 1;
     }
-    #endif
+#endif
 
     int sockfd;
     struct sockaddr_in servaddr;
@@ -87,7 +79,7 @@ int Conn(const char *servip) {
     }
     
     if(connect(sockfd, (struct sockaddr*) &servaddr, sizeof(servaddr)) < 0) {
-        if(errno == ECONNREFUSED) return -1;
+        if(GET_ERROR == ERR_ECONNREFUSED) return -1;
         err_sys("connect error"); 
         return -1;
     }
@@ -134,20 +126,17 @@ int Recv(int sockfd, char *recvline) {
 
     sel = select(sockfd + 1, &rfds, NULL, NULL, &tv);
     if (sel < 0) {
-        if (errno == EINTR) return -1; 
+        if (GET_ERROR == ERR_EINTR) return -1; 
         err_sys("Select");
         return -1;
     }
-    else if (sel == 0) { // timeout
-// #ifdef DEBUG
-//         printf("Timeout\n");
-// #endif
+    else if (sel == 0) { 
         return -2;
     }
     if (FD_ISSET(sockfd, &rfds)) {
         ssize_t n = recv(sockfd, recvline, MAXLINE - 1, 0);
         if (n < 0) {
-            if(errno == ECONNRESET) return -4096;
+            if(GET_ERROR == ERR_ECONNRESET) return -4096;
             err_sys("Recv");
         }
 #ifdef DEBUG
@@ -170,7 +159,7 @@ void Write(int sockfd, const void *vptr, size_t n) {
     rem = n;
     while(rem>0) {
         if((nw = write(sockfd, ptr, rem)) <= 0) {
-            if(nw<0 && errno == EINTR) nw = 0;
+            if(nw<0 && GET_ERROR == ERR_EINTR) nw = 0;
             else {
                 err_sys("Write error");
                 return;
@@ -207,7 +196,7 @@ void err_sys(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap); 
-    fprintf(stderr, ": %s\n", strerror(errno)); 
+    fprintf(stderr, ": %s\n", strerror(GET_ERROR)); 
     va_end(ap);
     exit(1);
 }

@@ -1,6 +1,4 @@
 #include "app/app.hpp"
-#include <fstream>
-#include <algorithm> 
 
 std::string servip = "127.0.0.1";
 
@@ -40,7 +38,7 @@ int main(int argc, char* argv[])
         }
     }
     
-    gameData.servip = servip; 
+    //gameData.servip = servip; 
 
     
     initBackground();
