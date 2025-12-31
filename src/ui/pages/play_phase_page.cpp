@@ -272,7 +272,7 @@ void runPlayPhasePage(
                     int bidder     = result.second.first;
                     int amount     = result.second.second;
                     
-                    if (nextPlayer == -2) break; 
+                    if (nextPlayer == -2 || nextPlayer == AUTO_PLAYER) break; 
                     if (nextPlayer == CONN_CLOSED) {
                         state = State::EndConn;
                         return;

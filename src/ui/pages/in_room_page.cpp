@@ -243,6 +243,15 @@ void runInRoomPage(
             return;
         }
 
+        bool prevReady = false;
+        if (prevMyIndex >= 0 && prevMyIndex < (int)localReady.size())
+            prevReady = localReady[prevMyIndex];
+        if (myIndex != prevMyIndex) {
+            if (prevMyIndex >= 0 && prevMyIndex < (int)localReady.size())
+                localReady[prevMyIndex] = false;
+            localReady[myIndex] = prevReady;//serverReady[myIndex];
+        }
+
         // 更新 Ready 狀態
         // 不覆蓋自己正在選的顏色
         for (int i = 0; i < n; i++) {
@@ -263,12 +272,6 @@ void runInRoomPage(
             for (int i = 0; i < copyCnt; i++)
                 newLocal[i] = localReady[i];
             localReady.swap(newLocal);
-        }
-
-        if (myIndex != prevMyIndex) {
-            if (prevMyIndex >= 0 && prevMyIndex < (int)localReady.size())
-                localReady[prevMyIndex] = false;
-            localReady[myIndex] = serverReady[myIndex];
         }
 
         isHost = (myIndex == 0);

@@ -130,6 +130,7 @@ void runRoomInfoPage(
                 errorMsg = "Wrong password (" + std::to_string(wrongKeyCount) + "/3)";
                 keyInput.clear();
                 if (wrongKeyCount >= 3) {
+                    gameData.EndConn();
                     reason = EndReason::WrongKeyTooMany;
                     state = State::EndConn;
                     return true;
@@ -209,6 +210,7 @@ void runRoomInfoPage(
                 updateBackgroundUI();
 
             if (exitBtn.clicked(e, window)) {
+                gameData.EndConn();
                 reason = EndReason::UserExit;
                 state = State::EndConn;
                 return;
@@ -277,6 +279,7 @@ void runRoomInfoPage(
         // ---- Timeout ----
         float remain = 60.f - timer.getElapsedTime().asSeconds();
         if (remain <= 0.f) {
+            gameData.EndConn();
             reason = EndReason::Timeout;
             state = State::EndConn;
             return;
